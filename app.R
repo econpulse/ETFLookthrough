@@ -1402,46 +1402,110 @@ server <- function(input, output, session) {
           div(class = "text-center text-muted small py-2", "Keine ETFs / Positionen zugewiesen.")
         } else {
           div(
-            class = "row g-2 text-center",
+            class = "row g-2 align-items-stretch",
+            
+            # 1. Links: Portfolio-Kennzahlen (1 Spalte, 3 Zeilen)
             div(
-              class = "col-3 col-md-3",
-              div(class = "small text-primary fw-semibold", "Erw. Rendite"),
-              div(class = "fs-6 fw-bold text-primary", if (is.na(am$expected_return)) "-" else sprintf("%.2f%%", am$expected_return))
+              class = "col-12 col-md-3",
+              div(
+                class = "card h-100 p-2 mb-0 shadow-sm border-primary-subtle d-flex flex-column justify-content-between bg-white",
+                div(
+                  class = "d-flex justify-content-between align-items-center py-1 border-bottom",
+                  span(class = "small fw-semibold text-primary", "Erw. Rendite:"),
+                  span(class = "fw-bold text-primary font-monospace", if (is.na(am$expected_return)) "-" else sprintf("%.2f%%", am$expected_return))
+                ),
+                div(
+                  class = "d-flex justify-content-between align-items-center py-1 border-bottom",
+                  span(class = "small fw-semibold text-muted", "Erw. Vola:"),
+                  span(class = "fw-bold text-dark font-monospace", if (is.na(am$expected_vol)) "-" else sprintf("%.2f%%", am$expected_vol))
+                ),
+                div(
+                  class = "d-flex justify-content-between align-items-center py-1",
+                  span(class = "small fw-semibold text-success", "Sharpe Ratio:"),
+                  span(class = "fw-bold text-success font-monospace", if (is.na(am$sharpe_ratio)) "-" else sprintf("%.2f", am$sharpe_ratio))
+                )
+              )
             ),
+            
+            # 2. Asset-Allokation (2x2 Block)
             div(
-              class = "col-3 col-md-3",
-              div(class = "small text-muted", "Erw. Vola"),
-              div(class = "fs-6 fw-bold text-dark", if (is.na(am$expected_vol)) "-" else sprintf("%.2f%%", am$expected_vol))
+              class = "col-12 col-md-3",
+              div(
+                class = "card h-100 p-2 mb-0 shadow-sm bg-white",
+                div(
+                  class = "row g-1 h-100",
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center",
+                        div(class = "small text-muted", style = "font-size:0.7rem;font-weight:600;", "AKTIEN"),
+                        div(class = "fw-bold text-primary", sprintf("%.1f%%", am$equity_weight_pct)))
+                  ),
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded border text-center h-100 d-flex flex-column justify-content-center", style = "background-color:#F0FDFA;",
+                        div(class = "small", style = "font-size:0.7rem;font-weight:600;color:#0D9488;", "BONDS"),
+                        div(class = "fw-bold", style = "color:#0D9488;", sprintf("%.1f%%", am$bond_weight_pct)))
+                  ),
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded border text-center h-100 d-flex flex-column justify-content-center", style = "background-color:#FDF2F0;",
+                        div(class = "small", style = "font-size:0.7rem;font-weight:600;color:#8C564B;", "REAL ESTATE"),
+                        div(class = "fw-bold", style = "color:#8C564B;", sprintf("%.1f%%", am$real_estate_weight_pct %||% 0)))
+                  ),
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded border text-center h-100 d-flex flex-column justify-content-center", style = "background-color:#FFFBEB;",
+                        div(class = "small", style = "font-size:0.7rem;font-weight:600;color:#D97706;", "ROHSTOFFE"),
+                        div(class = "fw-bold", style = "color:#D97706;", sprintf("%.1f%%", am$commodity_weight_pct %||% 0)))
+                  )
+                )
+              )
             ),
+            
+            # 3. Bewertung & Anleihen (2x2 Block)
             div(
-              class = "col-3 col-md-3",
-              div(class = "small text-success fw-semibold", "Sharpe Ratio"),
-              div(class = "fs-6 fw-bold text-success", if (is.na(am$sharpe_ratio)) "-" else sprintf("%.2f", am$sharpe_ratio))
+              class = "col-12 col-md-4",
+              div(
+                class = "card h-100 p-2 mb-0 shadow-sm bg-white",
+                div(
+                  class = "row g-1 h-100",
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center",
+                        div(class = "small text-muted", style = "font-size:0.7rem;font-weight:600;", "DIV. YIELD"),
+                        div(class = "fw-bold text-success", if (is.na(am$equity_weighted_div_yield)) "-" else sprintf("%.2f%%", am$equity_weighted_div_yield)))
+                  ),
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center",
+                        div(class = "small text-muted", style = "font-size:0.7rem;font-weight:600;", "KGV (P/E)"),
+                        div(class = "fw-bold text-dark", if (is.na(am$equity_weighted_pe) || am$equity_weighted_pe <= 0) "-" else sprintf("%.1fx", am$equity_weighted_pe)))
+                  ),
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded border text-center h-100 d-flex flex-column justify-content-center", style = "background-color:#F0FDFA;",
+                        div(class = "small text-muted", style = "font-size:0.7rem;font-weight:600;", "YTM (BONDS)"),
+                        div(class = "fw-bold", style = "color:#0D9488;", if (is.na(am$bond_weighted_ytm)) "-" else sprintf("%.2f%%", am$bond_weighted_ytm)))
+                  ),
+                  div(
+                    class = "col-6",
+                    div(class = "p-1 rounded border text-center h-100 d-flex flex-column justify-content-center", style = "background-color:#F0FDF4;",
+                        div(class = "small text-muted", style = "font-size:0.7rem;font-weight:600;", "DURATION"),
+                        div(class = "fw-bold", style = "color:#16A34A;", if (is.na(am$bond_weighted_mod_duration)) "-" else sprintf("%.2f J.", am$bond_weighted_mod_duration)))
+                  )
+                )
+              )
             ),
+            
+            # 4. Rechts: N_eff
             div(
-              class = "col-3 col-md-3",
-              div(class = "small text-muted", "Div. Yield"),
-              div(class = "fs-6 fw-bold text-secondary", if (is.na(am$equity_weighted_div_yield)) "-" else sprintf("%.2f%%", am$equity_weighted_div_yield))
-            ),
-            div(
-              class = "col-3 col-md-3",
-              div(class = "small text-muted", "KGV (P/E)"),
-              div(class = "fs-6 fw-bold text-secondary", if (is.na(am$equity_weighted_pe) || am$equity_weighted_pe <= 0) "-" else sprintf("%.1fx", am$equity_weighted_pe))
-            ),
-            div(
-              class = "col-3 col-md-3",
-              div(class = "small text-muted", "YTM (Bonds)"),
-              div(class = "fs-6 fw-bold text-teal", style = "color:#0D9488;", if (is.na(am$bond_weighted_ytm)) "-" else sprintf("%.2f%%", am$bond_weighted_ytm))
-            ),
-            div(
-              class = "col-3 col-md-3",
-              div(class = "small text-muted", "Duration"),
-              div(class = "fs-6 fw-bold text-secondary", if (is.na(am$bond_weighted_mod_duration)) "-" else sprintf("%.2f J.", am$bond_weighted_mod_duration))
-            ),
-            div(
-              class = "col-3 col-md-3",
-              div(class = "small text-muted", "N_eff (Aktien)"),
-              div(class = "fs-6 fw-bold text-dark", if (nrow(cm) > 0 && cm$n_eff > 0) cm$n_eff else "-")
+              class = "col-12 col-md-2",
+              div(
+                class = "card h-100 p-2 mb-0 shadow-sm d-flex flex-column justify-content-center text-center bg-light",
+                div(class = "small text-muted text-uppercase mb-1", style = "font-size:0.7rem;font-weight:600;", "N_eff (Holdings)"),
+                div(class = "fs-4 fw-bold text-dark", if (nrow(cm) > 0 && cm$n_eff > 0) cm$n_eff else "-"),
+                div(class = "small text-muted", style = "font-size:0.68rem;", "Effektive Titel")
+              )
             )
           )
         }

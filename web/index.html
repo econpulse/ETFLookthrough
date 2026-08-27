@@ -154,107 +154,109 @@
             </div>
           </div>
 
-          <!-- KPI Cards Row -->
-          <div class="row g-2 mb-3">
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box border-primary-subtle">
-                <div class="value-box-icon bg-primary text-white"><i class="bi bi-graph-up"></i></div>
-                <div class="value-box-content">
-                  <h6 class="text-primary fw-bold">Erw. Rendite (p.a.)</h6>
-                  <div class="value text-primary" id="kpi-val-exp-ret">-</div>
+          <!-- KPI Cards Section -->
+          <div class="row g-2 mb-3 align-items-stretch">
+            
+            <!-- 1. Ganz links: Portfolio Risk/Return (1 Spalte, 3 Zeilen) -->
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="card h-100 p-2 mb-0 shadow-sm border-primary-subtle d-flex flex-column justify-content-between">
+                <div class="d-flex align-items-center justify-content-between px-2 py-1 border-bottom">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white p-1 rounded"><i class="bi bi-graph-up"></i></span>
+                    <span class="small fw-semibold text-primary">Erw. Rendite (p.a.)</span>
+                  </div>
+                  <span class="fw-bold fs-6 text-primary font-monospace" id="kpi-val-exp-ret">-</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between px-2 py-1 border-bottom">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger-subtle text-danger p-1 rounded"><i class="bi bi-activity"></i></span>
+                    <span class="small fw-semibold text-muted">Erw. Vola (p.a.)</span>
+                  </div>
+                  <span class="fw-bold fs-6 text-dark font-monospace" id="kpi-val-exp-vol">-</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between px-2 py-1">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success p-1 rounded"><i class="bi bi-award"></i></span>
+                    <span class="small fw-semibold text-success">Sharpe Ratio</span>
+                  </div>
+                  <span class="fw-bold fs-6 text-success font-monospace" id="kpi-val-sharpe">-</span>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-danger-subtle text-danger"><i class="bi bi-activity"></i></div>
-                <div class="value-box-content">
-                  <h6>Erw. Vola (p.a.)</h6>
-                  <div class="value" id="kpi-val-exp-vol">-</div>
+
+            <!-- 2. Daneben: Anteile Assetklassen (2x2 Block) -->
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="card h-100 p-2 mb-0 shadow-sm">
+                <div class="row g-2 h-100">
+                  <div class="col-6">
+                    <div class="p-2 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">Aktien</div>
+                      <div class="fs-6 fw-bold text-primary" id="kpi-val-equity">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #F0FDFA;">
+                      <div class="text-uppercase" style="font-size: 0.7rem; font-weight: 600; color: #0D9488;">Anleihen</div>
+                      <div class="fs-6 fw-bold" style="color: #0D9488;" id="kpi-val-bonds">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #FDF2F0;">
+                      <div class="text-uppercase" style="font-size: 0.7rem; font-weight: 600; color: #8C564B;">Real Estate</div>
+                      <div class="fs-6 fw-bold" style="color: #8C564B;" id="kpi-val-re">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #FFFBEB;">
+                      <div class="text-uppercase" style="font-size: 0.7rem; font-weight: 600; color: #D97706;">Rohstoffe</div>
+                      <div class="fs-6 fw-bold" style="color: #D97706;" id="kpi-val-cmd">-</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-success-subtle text-success"><i class="bi bi-award"></i></div>
-                <div class="value-box-content">
-                  <h6>Sharpe Ratio</h6>
-                  <div class="value text-success" id="kpi-val-sharpe">-</div>
+
+            <!-- 3. Bewertung & Anleihenkennzahlen (2x2 Block) -->
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card h-100 p-2 mb-0 shadow-sm">
+                <div class="row g-2 h-100">
+                  <div class="col-6">
+                    <div class="p-2 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">Div. Rendite</div>
+                      <div class="fs-6 fw-bold text-primary" id="kpi-val-div">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">KGV (Harmon.)</div>
+                      <div class="fs-6 fw-bold text-dark" id="kpi-val-pe">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #F0FDFA;">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">YTM (Bonds)</div>
+                      <div class="fs-6 fw-bold text-teal" style="color: #0D9488;" id="kpi-val-ytm">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #F0FDF4;">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">Mod. Duration</div>
+                      <div class="fs-6 fw-bold" style="color: #16A34A;" id="kpi-val-dur">-</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-primary-subtle text-primary"><i class="bi bi-pie-chart"></i></div>
-                <div class="value-box-content">
-                  <h6>Aktienanteil</h6>
-                  <div class="value" id="kpi-val-equity">-</div>
-                </div>
+
+            <!-- 4. Ganz rechts: N_eff -->
+            <div class="col-12 col-md-6 col-xl-2">
+              <div class="card h-100 p-2 mb-0 shadow-sm d-flex flex-column justify-content-center text-center bg-light">
+                <div class="text-muted text-uppercase mb-1" style="font-size: 0.72rem; font-weight: 600;"><i class="bi bi-layers text-secondary me-1"></i> N_eff (Holdings)</div>
+                <div class="fs-4 fw-bold text-dark" id="kpi-val-neff">-</div>
+                <div class="small text-muted" style="font-size: 0.7rem;">Effektive Titelanzahl</div>
               </div>
             </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon text-teal" style="background-color:#E6FFFA;color:#0D9488;"><i class="bi bi-bank"></i></div>
-                <div class="value-box-content">
-                  <h6>Anleihenanteil</h6>
-                  <div class="value" id="kpi-val-bonds">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon" style="background-color:#FDF2F0;color:#8C564B;"><i class="bi bi-buildings"></i></div>
-                <div class="value-box-content">
-                  <h6>Real Estate</h6>
-                  <div class="value" id="kpi-val-re">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-success-subtle text-success"><i class="bi bi-graph-up-arrow"></i></div>
-                <div class="value-box-content">
-                  <h6>Div. Rendite</h6>
-                  <div class="value" id="kpi-val-div">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-warning-subtle text-warning"><i class="bi bi-percent"></i></div>
-                <div class="value-box-content">
-                  <h6>KGV (Harmon.)</h6>
-                  <div class="value" id="kpi-val-pe">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-info-subtle text-info"><i class="bi bi-percent"></i></div>
-                <div class="value-box-content">
-                  <h6>YTM (Bonds)</h6>
-                  <div class="value" id="kpi-val-ytm">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon" style="background-color:#F0FDF4;color:#16A34A;"><i class="bi bi-clock-history"></i></div>
-                <div class="value-box-content">
-                  <h6>Mod. Duration</h6>
-                  <div class="value" id="kpi-val-dur">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-6 col-md-4 col-xl">
-              <div class="value-box">
-                <div class="value-box-icon bg-secondary-subtle text-secondary"><i class="bi bi-layers"></i></div>
-                <div class="value-box-content">
-                  <h6>N_eff (Holdings)</h6>
-                  <div class="value" id="kpi-val-neff">-</div>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           <!-- Charts Row 1: Assetklassen-Divergenzen & Regionen-Divergenzen -->

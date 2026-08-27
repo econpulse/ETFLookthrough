@@ -329,6 +329,7 @@
     setVal('kpi-val-equity', pSum.is_active ? `${pSum.equity_weight_pct.toFixed(1)}%` : '-');
     setVal('kpi-val-bonds', pSum.is_active ? `${pSum.bond_weight_pct.toFixed(1)}%` : '-');
     setVal('kpi-val-re', pSum.is_active ? `${(pSum.real_estate_weight_pct || 0).toFixed(1)}%` : '-');
+    setVal('kpi-val-cmd', pSum.is_active ? `${(pSum.commodity_weight_pct || 0).toFixed(1)}%` : '-');
     setVal('kpi-val-div', (pSum.is_active && pSum.equity_weighted_div_yield) ? `${pSum.equity_weighted_div_yield.toFixed(2)}%` : '-');
     setVal('kpi-val-pe', (pSum.is_active && pSum.equity_weighted_pe) ? `${pSum.equity_weighted_pe.toFixed(1)}x` : '-');
     setVal('kpi-val-ytm', (pSum.is_active && pSum.bond_weighted_ytm) ? `${pSum.bond_weighted_ytm.toFixed(2)}%` : '-');
