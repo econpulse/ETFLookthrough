@@ -568,14 +568,35 @@ create_asset_allocation_chart <- function(summary_metrics, p_names, active_keys 
   ) %>% config(displayModeBar = FALSE)
 }
 
-#' Erstellt ein vergleichendes horizontales Balkendiagramm für Währungsallokationen
-create_currency_breakdown_chart <- function(curr_compare_df, p_names, active_keys = c("portfolio_1", "portfolio_2", "portfolio_3"), top_n = 10) {
+#' Erstellt ein vergleichendes horizontales Balkendiagramm für Währungsallokationen (Top N + "Übrige")
+create_currency_breakdown_chart <- function(curr_compare_df, p_names, active_keys = c("portfolio_1", "portfolio_2", "portfolio_3"), top_n = 8, other_label = "Übrige", x_axis_title = "Gewicht im Portfolio (%)") {
   if (is.null(curr_compare_df) || nrow(curr_compare_df) == 0) {
     return(plotly_empty(type = "scatter", mode = "markers"))
   }
   
-  df_plot <- head(curr_compare_df, top_n) %>%
-    arrange(weight_portfolio_1)
+  active_col_names <- paste0("weight_", active_keys)
+  active_col_names <- intersect(active_col_names, names(curr_compare_df))
+  if (length(active_col_names) == 0) return(plotly_empty(type = "scatter", mode = "markers"))
+  
+  # Sortiere nach maximalem Gewicht über alle aktiven Portfolios absteigend
+  curr_compare_df$max_weight <- apply(curr_compare_df[, active_col_names, drop = FALSE], 1, max, na.rm = TRUE)
+  curr_sorted <- curr_compare_df %>% arrange(desc(max_weight))
+  
+  top_df <- head(curr_sorted, top_n)
+  rest_df <- if (nrow(curr_sorted) > top_n) tail(curr_sorted, nrow(curr_sorted) - top_n) else tibble()
+  
+  if (nrow(rest_df) > 0) {
+    other_row <- tibble(currency = other_label)
+    for (cn in active_col_names) {
+      other_row[[cn]] <- sum(rest_df[[cn]], na.rm = TRUE)
+    }
+    df_plot <- bind_rows(top_df, other_row)
+  } else {
+    df_plot <- top_df
+  }
+  
+  # Kategorien-Reihenfolge (Top 1 oben, Übrige ganz unten)
+  cat_order <- rev(df_plot$currency)
   
   p <- plot_ly()
   
@@ -608,7 +629,7 @@ create_currency_breakdown_chart <- function(curr_compare_df, p_names, active_key
     barmode = "group",
     bargap = 0.25,
     xaxis = list(
-      title = "Gewicht im Portfolio (%)",
+      title = x_axis_title,
       ticksuffix = "%",
       showgrid = TRUE,
       gridcolor = "#F3F4F6",
@@ -616,6 +637,8 @@ create_currency_breakdown_chart <- function(curr_compare_df, p_names, active_key
     ),
     yaxis = list(
       title = "",
+      categoryorder = "array",
+      categoryarray = cat_order,
       tickfont = list(size = 11, color = "#374151", family = "monospace")
     ),
     legend = list(

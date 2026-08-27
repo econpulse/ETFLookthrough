@@ -118,24 +118,46 @@
 
   function renderOverallCurrencyPlot(elementId, currCompareData, portfoliosState) {
     const elem = document.getElementById(elementId);
-    if (!elem || typeof Plotly === 'undefined') return;
+    if (!elem || typeof Plotly === 'undefined' || !currCompareData || currCompareData.length === 0) return;
 
-    const topCurrencies = currCompareData.slice(0, 8);
+    const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"].filter(
+      pk => portfoliosState[pk] && portfoliosState[pk].enabled
+    );
+
+    if (portKeys.length === 0) return;
+
+    // Sort currencies by max weight across active portfolios descending
+    const sortedData = [...currCompareData].sort((a, b) => {
+      const maxA = Math.max(...portKeys.map(pk => a[`weight_${pk}`] || 0));
+      const maxB = Math.max(...portKeys.map(pk => b[`weight_${pk}`] || 0));
+      return maxB - maxA;
+    });
+
+    const top8 = sortedData.slice(0, 8);
+    const rest = sortedData.slice(8);
+
+    const chartData = [...top8];
+
+    if (rest.length > 0) {
+      const otherRow = { currency: "Übrige" };
+      portKeys.forEach(pk => {
+        const sumRest = rest.reduce((sum, item) => sum + (item[`weight_${pk}`] || 0), 0);
+        otherRow[`weight_${pk}`] = sumRest;
+      });
+      chartData.push(otherRow);
+    }
+
     const traces = [];
-    const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"];
-
     for (const pKey of portKeys) {
       const pConf = portfoliosState[pKey];
-      if (pConf && pConf.enabled) {
-        traces.push({
-          x: topCurrencies.map(c => c.currency),
-          y: topCurrencies.map(c => c[`weight_${pKey}`] || 0),
-          name: pConf.name || pKey,
-          type: "bar",
-          marker: { color: PORTFOLIO_COLORS[pKey] },
-          hovertemplate: `<b>%{x}</b> (%{fullData.name})<br>Gewicht: %{y:.2f}%<extra></extra>`
-        });
-      }
+      traces.push({
+        x: chartData.map(c => c.currency),
+        y: chartData.map(c => Number((c[`weight_${pKey}`] || 0).toFixed(2))),
+        name: pConf.name || pKey,
+        type: "bar",
+        marker: { color: PORTFOLIO_COLORS[pKey] },
+        hovertemplate: `<b>%{x}</b> (%{fullData.name})<br>Gewicht: %{y:.2f}%<extra></extra>`
+      });
     }
 
     const layout = {
@@ -151,32 +173,66 @@
 
   function renderSegmentCurrencyPlot(elementId, segmentCurrData, portfoliosState, segmentName = "Aktien") {
     const elem = document.getElementById(elementId);
-    if (!elem || typeof Plotly === 'undefined') return;
+    if (!elem || typeof Plotly === 'undefined' || !segmentCurrData || segmentCurrData.length === 0) return;
+
+    const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"].filter(
+      pk => portfoliosState[pk] && portfoliosState[pk].enabled
+    );
+
+    if (portKeys.length === 0) return;
+
+    const activeData = segmentCurrData.filter(d => portKeys.includes(d.portfolio_key));
+    const allCurrencies = Array.from(new Set(activeData.map(d => d.currency)));
+
+    // Rank currencies by max share across active portfolios
+    const rankedCurrencies = allCurrencies.map(curr => {
+      const maxVal = Math.max(...portKeys.map(pk => {
+        const item = activeData.find(d => d.portfolio_key === pk && d.currency === curr);
+        return item ? (item.pct_of_equity ?? item.pct_of_bonds ?? 0) : 0;
+      }));
+      return { currency: curr, maxVal };
+    }).sort((a, b) => b.maxVal - a.maxVal);
+
+    const top5Currs = rankedCurrencies.slice(0, 5).map(c => c.currency);
+    const restCurrs = rankedCurrencies.slice(5).map(c => c.currency);
+
+    const xCategories = [...top5Currs];
+    if (restCurrs.length > 0) {
+      xCategories.push("Übrige");
+    }
 
     const traces = [];
-    const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"];
-
     for (const pKey of portKeys) {
       const pConf = portfoliosState[pKey];
-      if (pConf && pConf.enabled) {
-        const pData = segmentCurrData.filter(d => d.portfolio_key === pKey);
-        if (pData.length > 0) {
-          traces.push({
-            x: pData.map(d => d.currency),
-            y: pData.map(d => d.pct_of_equity ?? d.pct_of_bonds ?? 0),
-            name: pConf.name || pKey,
-            type: "bar",
-            marker: { color: PORTFOLIO_COLORS[pKey] },
-            hovertemplate: `<b>%{x}</b> (%{fullData.name})<br>Anteil im Segment: %{y:.2f}%<extra></extra>`
-          });
-        }
+      const pData = activeData.filter(d => d.portfolio_key === pKey);
+
+      const yVals = top5Currs.map(curr => {
+        const item = pData.find(d => d.currency === curr);
+        return item ? Number((item.pct_of_equity ?? item.pct_of_bonds ?? 0).toFixed(2)) : 0;
+      });
+
+      if (restCurrs.length > 0) {
+        const otherSum = pData
+          .filter(d => restCurrs.includes(d.currency))
+          .reduce((sum, d) => sum + (d.pct_of_equity ?? d.pct_of_bonds ?? 0), 0);
+        yVals.push(Number(otherSum.toFixed(2)));
       }
+
+      traces.push({
+        x: xCategories,
+        y: yVals,
+        name: pConf.name || pKey,
+        type: "bar",
+        marker: { color: PORTFOLIO_COLORS[pKey] },
+        hovertemplate: `<b>%{x}</b> (%{fullData.name})<br>Anteil im Segment: %{y:.2f}%<extra></extra>`
+      });
     }
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
       barmode: "group",
       yaxis: { title: `Anteil an ${segmentName} (%)`, gridcolor: "#E2E8F0" },
+      xaxis: { title: "Währung" },
       legend: { orientation: "h", y: -0.25 }
     };
 

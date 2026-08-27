@@ -1518,7 +1518,13 @@ server <- function(input, output, session) {
   
   output$plot_overall_currency <- renderPlotly({
     req(asset_currency_metrics_results(), portfolio_names_map(), active_portfolio_keys())
-    create_currency_breakdown_chart(asset_currency_metrics_results()$overall_currency_compare, portfolio_names_map(), active_portfolio_keys())
+    create_currency_breakdown_chart(
+      asset_currency_metrics_results()$overall_currency_compare,
+      portfolio_names_map(),
+      active_portfolio_keys(),
+      top_n = 8,
+      x_axis_title = "Gewicht im Portfolio (%)"
+    )
   })
   
   output$ui_equity_kpi_card <- renderUI({
@@ -1578,7 +1584,7 @@ server <- function(input, output, session) {
       }
     }
     
-    create_currency_breakdown_chart(comp_df, p_names, active_keys, top_n = 8)
+    create_currency_breakdown_chart(comp_df, p_names, active_keys, top_n = 5, x_axis_title = "Anteil am Aktiensegment (%)")
   })
   
   output$ui_bond_kpi_card <- renderUI({
@@ -1634,7 +1640,7 @@ server <- function(input, output, session) {
       }
     }
     
-    create_currency_breakdown_chart(comp_df, p_names, active_keys, top_n = 8)
+    create_currency_breakdown_chart(comp_df, p_names, active_keys, top_n = 5, x_axis_title = "Anteil am Anleihensegment (%)")
   })
   
   output$table_overall_currency_detail <- renderReactable({
