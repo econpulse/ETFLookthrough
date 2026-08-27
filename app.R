@@ -1531,76 +1531,90 @@ server <- function(input, output, session) {
   })
   
   output$table_dash_multi_asset <- renderReactable({
-    req(asset_currency_metrics_results())
+    req(asset_currency_metrics_results(), portfolio_names_map(), active_portfolio_keys())
     summary_df <- asset_currency_metrics_results()$summary_metrics %>% dplyr::filter(is_active)
+    if (nrow(summary_df) == 0) return(NULL)
+    
+    active_keys <- active_portfolio_keys()
+    p_names <- portfolio_names_map()
+    
+    # Rows Definition
+    metric_rows <- tibble::tribble(
+      ~section, ~metric_label, ~key, ~type,
+      "Asset-Allokation", "Aktien (%)", "equity_weight_pct", "pct",
+      "Asset-Allokation", "Anleihen / Bonds (%)", "bond_weight_pct", "pct",
+      "Asset-Allokation", "Real Estate (%)", "real_estate_weight_pct", "pct",
+      "Asset-Allokation", "Rohstoffe (%)", "commodity_weight_pct", "pct",
+      "Asset-Allokation", "Cash (%)", "cash_weight_pct", "pct",
+      "Risk & Return", "Erw. Rendite (p.a.)", "expected_return", "pct2",
+      "Risk & Return", "Erw. Volatilität (p.a.)", "expected_vol", "pct2",
+      "Risk & Return", "Sharpe Ratio", "sharpe_ratio", "num2",
+      "Aktien-Kennzahlen", "Dividendenrendite", "equity_weighted_div_yield", "pct2",
+      "Aktien-Kennzahlen", "KGV (Harmonisch)", "equity_weighted_pe", "x1",
+      "Aktien-Kennzahlen", "KBV (Harmonisch)", "equity_weighted_pb", "x2",
+      "Anleihen-Kennzahlen", "Yield to Maturity (YTM)", "bond_weighted_ytm", "pct2",
+      "Anleihen-Kennzahlen", "Mod. Duration", "bond_weighted_mod_duration", "years",
+      "Anleihen-Kennzahlen", "Restlaufzeit", "bond_weighted_maturity_years", "years"
+    )
+    
+    # Build columns for each active portfolio
+    for (pk in active_keys) {
+      row_match <- summary_df %>% dplyr::filter(portfolio_key == pk)
+      col_vals <- sapply(seq_len(nrow(metric_rows)), function(i) {
+        k <- metric_rows$key[i]
+        t <- metric_rows$type[i]
+        if (nrow(row_match) == 0 || !(k %in% names(row_match)) || is.na(row_match[[k]])) return("-")
+        v <- row_match[[k]]
+        switch(t,
+          "pct" = sprintf("%.1f%%", v),
+          "pct2" = sprintf("%.2f%%", v),
+          "num2" = sprintf("%.2f", v),
+          "x1" = sprintf("%.1fx", v),
+          "x2" = sprintf("%.2fx", v),
+          "years" = sprintf("%.2f J.", v),
+          as.character(v)
+        )
+      })
+      metric_rows[[pk]] <- col_vals
+    }
+    
+    col_defs <- list(
+      section = colDef(name = "Kategorie", minWidth = 150, style = list(fontWeight = 700, color = "#475569")),
+      metric_label = colDef(name = "Kennzahl", minWidth = 190, style = list(fontWeight = 600)),
+      key = colDef(show = FALSE),
+      type = colDef(show = FALSE)
+    )
+    
+    for (pk in active_keys) {
+      p_name <- p_names[[pk]]
+      col_defs[[pk]] <- colDef(
+        name = p_name,
+        align = "right",
+        minWidth = 130,
+        style = function(value, index) {
+          k <- metric_rows$key[index]
+          if (k == "expected_return") {
+            list(fontWeight = 700, color = "#1E40AF", backgroundColor = "#EFF6FF")
+          } else if (k == "expected_vol") {
+            list(fontWeight = 600, color = "#1E293B", backgroundColor = "#F8FAFC")
+          } else if (k == "sharpe_ratio") {
+            list(fontWeight = 700, color = "#16A34A", backgroundColor = "#F0FDF4")
+          } else {
+            list(fontFamily = "monospace")
+          }
+        }
+      )
+    }
     
     reactable(
-      summary_df %>% dplyr::select(
-        portfolio_name, equity_weight_pct, bond_weight_pct, real_estate_weight_pct, commodity_weight_pct, cash_weight_pct, expected_return, expected_vol, sharpe_ratio, equity_weighted_div_yield, equity_weighted_pe, equity_weighted_pb, bond_weighted_ytm, bond_weighted_mod_duration, bond_weighted_maturity_years
-      ),
-      columns = list(
-        portfolio_name = colDef(name = "Portfolio", minWidth = 150, style = list(fontWeight = 600)),
-        equity_weight_pct = colDef(name = "Aktien (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
-        bond_weight_pct = colDef(name = "Bonds (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
-        real_estate_weight_pct = colDef(name = "Real Estate (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
-        commodity_weight_pct = colDef(name = "Rohstoffe (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
-        cash_weight_pct = colDef(name = "Cash (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
-        expected_return = colDef(
-          name = "Erw. Rendite (p.a.)",
-          align = "right",
-          style = list(color = "#1E40AF", fontWeight = 700, backgroundColor = "#EFF6FF"),
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f%%", v)
-        ),
-        expected_vol = colDef(
-          name = "Erw. Vola (p.a.)",
-          align = "right",
-          style = list(color = "#1E293B", fontWeight = 600, backgroundColor = "#F8FAFC"),
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f%%", v)
-        ),
-        sharpe_ratio = colDef(
-          name = "Sharpe Ratio",
-          align = "right",
-          style = list(color = "#16A34A", fontWeight = 700, backgroundColor = "#F0FDF4"),
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f", v)
-        ),
-        equity_weighted_div_yield = colDef(
-          name = "Gew. Div. Yield",
-          align = "right",
-          style = list(color = "#1E40AF", fontWeight = 600),
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f%%", v)
-        ),
-        equity_weighted_pe = colDef(
-          name = "Gew. KGV (P/E)",
-          align = "right",
-          style = list(color = "#1E40AF", fontWeight = 700),
-          cell = function(v) if (is.na(v) || v <= 0) "-" else sprintf("%.1fx", v)
-        ),
-        equity_weighted_pb = colDef(
-          name = "Gew. KBV (P/B)",
-          align = "right",
-          style = list(fontWeight = 600),
-          cell = function(v) if (is.na(v) || v <= 0) "-" else sprintf("%.2fx", v)
-        ),
-        bond_weighted_ytm = colDef(
-          name = "Gew. YTM (Bonds)",
-          align = "right",
-          style = list(color = "#0D9488", fontWeight = 600),
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f%%", v)
-        ),
-        bond_weighted_mod_duration = colDef(
-          name = "Gew. Duration",
-          align = "right",
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f J.", v)
-        ),
-        bond_weighted_maturity_years = colDef(
-          name = "Gew. Restlaufzeit",
-          align = "right",
-          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f J.", v)
-        )
-      ),
+      metric_rows,
+      groupBy = "section",
+      columns = col_defs,
       bordered = FALSE,
       striped = TRUE,
-      pagination = FALSE
+      highlight = TRUE,
+      pagination = FALSE,
+      defaultExpanded = TRUE
     )
   })
   

@@ -93,52 +93,84 @@
     const elem = document.getElementById(elementId);
     if (!elem) return;
 
+    const activeMetrics = summaryMetrics.filter(m => m.is_active);
+    if (activeMetrics.length === 0) {
+      elem.innerHTML = '<div class="text-muted p-3 text-center">Keine aktiven Portfolios.</div>';
+      return;
+    }
+
+    const rowsDef = [
+      { section: "Asset-Allokation", isHeader: true },
+      { label: "Aktien (%)", key: "equity_weight_pct", format: v => formatNum(v, 1, "%"), badgeClass: "bg-primary-subtle text-primary border" },
+      { label: "Anleihen / Bonds (%)", key: "bond_weight_pct", format: v => formatNum(v, 1, "%"), badgeStyle: "background-color:#E6FFFA;color:#0D9488;border:1px solid #5EEAD4;" },
+      { label: "Real Estate (%)", key: "real_estate_weight_pct", format: v => formatNum(v, 1, "%"), badgeStyle: "background-color:#FDF2F0;color:#8C564B;border:1px solid #F5C6CB;" },
+      { label: "Rohstoffe (%)", key: "commodity_weight_pct", format: v => formatNum(v, 1, "%"), badgeStyle: "background-color:#FFFBEB;color:#D97706;border:1px solid #FDE68A;" },
+      { label: "Cash (%)", key: "cash_weight_pct", format: v => formatNum(v, 1, "%"), badgeStyle: "background-color:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;" },
+
+      { section: "Risk & Return", isHeader: true },
+      { label: "Erw. Rendite (p.a.)", key: "expected_return", format: v => formatNum(v, 2, "%"), cellClass: "fw-bold text-primary bg-primary-subtle font-monospace" },
+      { label: "Erw. Volatilität (p.a.)", key: "expected_vol", format: v => formatNum(v, 2, "%"), cellClass: "fw-bold text-dark bg-light font-monospace" },
+      { label: "Sharpe Ratio", key: "sharpe_ratio", format: v => v != null ? v.toFixed(2) : "-", cellClass: "fw-bold text-success bg-light font-monospace" },
+
+      { section: "Aktien-Kennzahlen", isHeader: true },
+      { label: "Dividendenrendite", key: "equity_weighted_div_yield", format: v => formatNum(v, 2, "%"), fontMono: true },
+      { label: "KGV (Harmonisch)", key: "equity_weighted_pe", format: v => formatNum(v, 1, "x"), fontMono: true },
+      { label: "KBV (Harmonisch)", key: "equity_weighted_pb", format: v => formatNum(v, 1, "x"), fontMono: true },
+
+      { section: "Anleihen-Kennzahlen", isHeader: true },
+      { label: "Yield to Maturity (YTM)", key: "bond_weighted_ytm", format: v => formatNum(v, 2, "%"), fontMono: true },
+      { label: "Mod. Duration", key: "bond_weighted_mod_duration", format: v => formatNum(v, 1, " J."), fontMono: true },
+      { label: "Restlaufzeit", key: "bond_weighted_maturity_years", format: v => formatNum(v, 1, " J."), fontMono: true }
+    ];
+
     let html = `
       <div class="table-responsive">
-        <table class="table table-sm table-bordered align-middle mb-0 text-center" style="font-size: 0.84rem;">
+        <table class="table table-sm table-hover table-bordered align-middle mb-0" style="font-size: 0.85rem;">
           <thead class="table-light">
             <tr>
-              <th class="text-start">Portfolio</th>
-              <th>Aktien (%)</th>
-              <th>Bonds (%)</th>
-              <th>Real Estate (%)</th>
-              <th>Rohstoffe (%)</th>
-              <th>Cash (%)</th>
-              <th class="table-primary text-primary fw-bold" title="Annualisierte erwartete Portfoliorendite">Erw. Rendite (p.a.)</th>
-              <th class="table-primary text-primary fw-bold" title="Annualisierte erwartete Portfoliovolatilität">Erw. Vola (p.a.)</th>
-              <th class="table-primary text-primary fw-bold" title="Sharpe Ratio (Rendite / Vola)">Sharpe Ratio</th>
-              <th>Div. Rendite</th>
-              <th>KGV</th>
-              <th>KBV</th>
-              <th>Yield to Maturity (Bonds)</th>
-              <th>Mod. Duration (Bonds)</th>
-              <th>Restlaufzeit (Bonds)</th>
+              <th style="width: 35%;" class="ps-3">Kennzahl</th>
+    `;
+
+    for (const m of activeMetrics) {
+      html += `<th class="text-end pe-3" style="width: ${65 / activeMetrics.length}%;">${m.portfolio_name}</th>`;
+    }
+
+    html += `
             </tr>
           </thead>
           <tbody>
     `;
 
-    for (const m of summaryMetrics) {
-      if (!m.is_active) continue;
-      html += `
-        <tr>
-          <td class="text-start fw-bold">${m.portfolio_name}</td>
-          <td><span class="badge bg-primary-subtle text-primary border">${m.equity_weight_pct.toFixed(1)}%</span></td>
-          <td><span class="badge bg-teal-subtle text-teal border" style="background-color:#E6FFFA;color:#0D9488;border-color:#5EEAD4;">${m.bond_weight_pct.toFixed(1)}%</span></td>
-          <td><span class="badge" style="background-color:#FDF2F0;color:#8C564B;border:1px solid #F5C6CB;">${(m.real_estate_weight_pct || 0).toFixed(1)}%</span></td>
-          <td><span class="badge" style="background-color:#FFFBEB;color:#D97706;border:1px solid #FDE68A;">${(m.commodity_weight_pct || 0).toFixed(1)}%</span></td>
-          <td><span class="badge" style="background-color:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">${(m.cash_weight_pct || 0).toFixed(1)}%</span></td>
-          <td class="font-monospace fw-bold text-primary bg-primary-subtle">${formatNum(m.expected_return, 2, "%")}</td>
-          <td class="font-monospace fw-bold text-dark bg-light">${formatNum(m.expected_vol, 2, "%")}</td>
-          <td class="font-monospace fw-bold text-success bg-light">${m.sharpe_ratio != null ? m.sharpe_ratio.toFixed(2) : "-"}</td>
-          <td class="font-monospace">${formatNum(m.equity_weighted_div_yield, 2, "%")}</td>
-          <td class="font-monospace">${formatNum(m.equity_weighted_pe, 1, "x")}</td>
-          <td class="font-monospace">${formatNum(m.equity_weighted_pb, 1, "x")}</td>
-          <td class="font-monospace">${formatNum(m.bond_weighted_ytm, 2, "%")}</td>
-          <td class="font-monospace">${formatNum(m.bond_weighted_mod_duration, 1, " J.")}</td>
-          <td class="font-monospace">${formatNum(m.bond_weighted_maturity_years, 1, " J.")}</td>
-        </tr>
-      `;
+    for (const r of rowsDef) {
+      if (r.isHeader) {
+        html += `
+          <tr class="table-secondary bg-light">
+            <td colspan="${activeMetrics.length + 1}" class="fw-bold text-uppercase py-1 ps-3 text-secondary" style="font-size: 0.74rem; letter-spacing: 0.5px;">
+              ${r.section}
+            </td>
+          </tr>
+        `;
+        continue;
+      }
+
+      html += `<tr><td class="ps-3 fw-semibold text-dark">${r.label}</td>`;
+
+      for (const m of activeMetrics) {
+        const val = m[r.key];
+        const formatted = r.format(val);
+        
+        let cellContent = formatted;
+        if (r.badgeClass) {
+          cellContent = `<span class="badge ${r.badgeClass}">${formatted}</span>`;
+        } else if (r.badgeStyle) {
+          cellContent = `<span class="badge" style="${r.badgeStyle}">${formatted}</span>`;
+        }
+
+        const extraClass = r.cellClass ? r.cellClass : (r.fontMono ? 'font-monospace' : '');
+        html += `<td class="text-end pe-3 ${extraClass}">${cellContent}</td>`;
+      }
+
+      html += `</tr>`;
     }
 
     html += '</tbody></table></div>';
