@@ -1451,3 +1451,93 @@ render_full_lookthrough_reactable <- function(holdings_df, portfolio_name, p_key
     )
   )
 }
+
+#' Rendert die Bond Region x Issuer Type Breakdown Matrix als Reactable
+#' 
+#' @param breakdown_res Ergebnisliste aus calculate_bond_region_issuer_breakdown()
+#' @return Reactable HTML-Widget
+render_bond_region_issuer_reactable <- function(breakdown_res) {
+  if (is.null(breakdown_res) || !isTRUE(breakdown_res$is_active) || nrow(breakdown_res$matrix_df) == 0) {
+    return(reactable(
+      tibble(Hinweis = "Keine Fixed-Income (Bond) Positionen im ausgewählten Portfolio enthalten."),
+      columns = list(Hinweis = colDef(align = "center", style = list(color = "#9CA3AF", padding = "20px"))),
+      outlined = TRUE, borderless = TRUE
+    ))
+  }
+  
+  df <- breakdown_res$matrix_df
+  issuer_cols <- breakdown_res$issuer_cols
+  
+  issuer_labels <- c(
+    "SOV"    = "Sovereigns (SOV)",
+    "FIN"    = "Financials (FIN)",
+    "CORP"   = "Corporates (CORP)",
+    "AGCY"   = "Agencies (AGCY)",
+    "SUPR"   = "Supranationals (SUPR)",
+    "SSOV"   = "Sub-Sovereigns (SSOV)",
+    "Andere" = "Andere / Sonstige"
+  )
+  
+  col_defs <- list(
+    bond_region = colDef(
+      name = "Region",
+      minWidth = 140,
+      style = function(value, index) {
+        if (df$bond_region[index] == "Total") {
+          list(fontWeight = 700, backgroundColor = "#F1F5F9")
+        } else {
+          list(fontWeight = 600)
+        }
+      }
+    )
+  )
+  
+  for (col in issuer_cols) {
+    lbl <- if (col %in% names(issuer_labels)) issuer_labels[[col]] else col
+    col_defs[[col]] <- colDef(
+      name = col,
+      header = function(value) htmltools::tags$span(title = lbl, value),
+      minWidth = 85,
+      align = "right",
+      style = function(value, index) {
+        if (df$bond_region[index] == "Total") {
+          list(fontWeight = 700, fontFamily = "monospace", backgroundColor = "#F1F5F9")
+        } else {
+          list(fontFamily = "monospace")
+        }
+      },
+      cell = function(v) {
+        if (is.na(v) || v == 0) "-" else sprintf("%.2f%%", v)
+      }
+    )
+  }
+  
+  col_defs[["Total"]] <- colDef(
+    name = "Total (%)",
+    minWidth = 95,
+    align = "right",
+    style = function(value, index) {
+      if (df$bond_region[index] == "Total") {
+        list(fontWeight = 700, color = "#0D9488", fontFamily = "monospace", backgroundColor = "#E6FFFA")
+      } else {
+        list(fontWeight = 700, fontFamily = "monospace", backgroundColor = "#F8FAFC")
+      }
+    },
+    cell = function(v) sprintf("%.2f%%", v)
+  )
+  
+  reactable(
+    df,
+    columns = col_defs,
+    pagination = FALSE,
+    highlight = TRUE,
+    bordered = FALSE,
+    striped = FALSE,
+    class = "table-hover border rounded",
+    theme = reactableTheme(
+      borderColor = "#E2E8F0",
+      headerStyle = list(backgroundColor = "#F8FAFC", fontWeight = 600, fontSize = "0.85rem", color = "#475569")
+    )
+  )
+}
+

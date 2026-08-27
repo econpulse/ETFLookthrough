@@ -294,6 +294,34 @@ ui <- page_navbar(
             reactableOutput("table_bond_currency_detail")
           )
         )
+      ),
+      
+      # Reihe 4: Anleihen-Breakdown nach Region & Emittententyp (FI-Portfolio)
+      card(
+        class = "mt-3 border-success",
+        card_header(
+          class = "d-flex justify-content-between align-items-center bg-white",
+          span(bs_icon("diagram-2", class = "text-success me-1"), strong("Anleihen-Breakdown nach Region & Emittententyp (FI-Portfolio)")),
+          div(
+            class = "d-flex align-items-center gap-2",
+            span(class = "small text-muted", "Portfolio:"),
+            selectInput(
+              "select_shiny_bond_breakdown_port",
+              label = NULL,
+              choices = c("Portfolio 1" = "portfolio_1", "Portfolio 2" = "portfolio_2", "Portfolio 3" = "portfolio_3"),
+              selected = "portfolio_1",
+              width = "180px"
+            )
+          )
+        ),
+        card_body(
+          reactableOutput("table_shiny_bond_region_issuer_breakdown")
+        ),
+        card_footer(
+          class = "bg-light d-flex justify-content-between align-items-center py-1 px-3",
+          span(class = "text-muted small", bs_icon("info-circle"), " Prozentual auf das gesamte Fixed-Income (FI) Segment des ausgewählten Portfolios hochgerechnet (Summe = 100%). Bei Schwellenländern wird zwischen EM HC und EM LC unterschieden."),
+          uiOutput("ui_shiny_bond_fi_total_badge")
+        )
       )
     )
   ),
@@ -1626,6 +1654,46 @@ server <- function(input, output, session) {
     bond_curr_df <- asset_currency_metrics_results()$bond_currency
     render_bond_currency_reactable(bond_curr_df, portfolio_names_map(), active_portfolio_keys())
   })
+
+  # Anleihen Region x Issuer-Type Breakdown
+  observe({
+    req(portfolio_names_map(), active_portfolio_keys())
+    active_keys <- active_portfolio_keys()
+    p_names <- portfolio_names_map()
+    choices_list <- stats::setNames(active_keys, sapply(active_keys, function(k) p_names[[k]]))
+    cur_sel <- input$select_shiny_bond_breakdown_port
+    if (is.null(cur_sel) || !cur_sel %in% active_keys) {
+      cur_sel <- active_keys[1]
+    }
+    updateSelectInput(session, "select_shiny_bond_breakdown_port", choices = choices_list, selected = cur_sel)
+  })
+  
+  bond_breakdown_res <- reactive({
+    req(input$select_shiny_bond_breakdown_port, portfolios_state(), raw_data_env$clean_data, raw_data_env$ticker_df)
+    calculate_bond_region_issuer_breakdown(
+      portfolio_key = input$select_shiny_bond_breakdown_port,
+      portfolios_list = portfolios_state(),
+      clean_data = raw_data_env$clean_data,
+      ticker_df = raw_data_env$ticker_df
+    )
+  })
+  
+  output$table_shiny_bond_region_issuer_breakdown <- renderReactable({
+    req(bond_breakdown_res())
+    render_bond_region_issuer_reactable(bond_breakdown_res())
+  })
+  
+  output$ui_shiny_bond_fi_total_badge <- renderUI({
+    req(bond_breakdown_res())
+    res <- bond_breakdown_res()
+    tot_fi <- if (!is.null(res$total_fi_weight)) res$total_fi_weight else 0
+    span(
+      class = "badge font-monospace",
+      style = "background-color: #CCFBF1; color: #0F766E; font-size: 0.82rem;",
+      sprintf("FI-Anteil am Portfolio: %.1f%%", tot_fi)
+    )
+  })
+
   
   # ----------------------------------------------------------------------------
   # TAB 3: SEKTOREN TAB OUTPUTS (AKTIEN)

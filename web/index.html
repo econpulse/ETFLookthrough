@@ -351,6 +351,34 @@
               </div>
             </div>
           </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-12">
+              <div class="card shadow-sm border-teal" style="border-color: #0D9488;">
+                <div class="card-header d-flex justify-content-between align-items-center bg-white py-2">
+                  <div class="fw-bold text-dark">
+                    <i class="bi bi-diagram-2 text-teal me-1" style="color: #0D9488;"></i>
+                    Anleihen-Breakdown nach Region & Emittententyp (FI-Portfolio)
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <label for="select_bond_breakdown_portfolio" class="small text-muted mb-0 fw-medium">Portfolio:</label>
+                    <select id="select_bond_breakdown_portfolio" class="form-select form-select-sm" style="width: auto; font-size: 0.85rem; font-weight: 500;">
+                      <option value="portfolio_1">Portfolio 1 (TAA)</option>
+                      <option value="portfolio_2">Portfolio 2 (SAA)</option>
+                      <option value="portfolio_3">Portfolio 3 (TAA-Alt)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="card-body p-0">
+                  <div id="table_bond_region_issuer_breakdown"></div>
+                </div>
+                <div class="card-footer bg-light py-1 px-3 d-flex justify-content-between align-items-center">
+                  <span class="text-muted small" id="bond_breakdown_info_text"><i class="bi bi-info-circle me-1"></i> Prozentual auf das gesamte Fixed-Income (FI) Segment des ausgewählten Portfolios hochgerechnet (Summe = 100%). Bei Schwellenländern wird zwischen EM HC und EM LC unterschieden.</span>
+                  <span class="badge font-monospace" id="bond_breakdown_fi_total_badge" style="background-color: #CCFBF1; color: #0F766E; font-size: 0.82rem;">FI-Anteil am Portfolio: 41.0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- =================================================================== -->

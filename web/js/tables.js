@@ -635,6 +635,92 @@
     elem.innerHTML = html;
   }
 
+  const ISSUER_TYPE_LABELS = {
+    "SOV": "Sovereigns (SOV)",
+    "FIN": "Financials (FIN)",
+    "CORP": "Corporates (CORP)",
+    "AGCY": "Agencies (AGCY)",
+    "SUPR": "Supranationals (SUPR)",
+    "SSOV": "Sub-Sovereigns (SSOV)",
+    "Andere": "Andere / Sonstige"
+  };
+
+  function renderBondRegionIssuerTable(elementId, breakdownData) {
+    const elem = document.getElementById(elementId);
+    if (!elem) return;
+
+    if (!breakdownData || !breakdownData.isActive || !breakdownData.matrix || breakdownData.matrix.length === 0) {
+      elem.innerHTML = `
+        <div class="p-4 text-center text-muted">
+          <i class="bi bi-info-circle me-1"></i> Keine Fixed-Income (Bond) Positionen im ausgewählten Portfolio enthalten.
+        </div>
+      `;
+      return;
+    }
+
+    const { matrix, totalRow, issuerCols } = breakdownData;
+
+    let html = `
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3" style="min-width: 140px;">Region</th>
+    `;
+
+    issuerCols.forEach(col => {
+      const fullLabel = ISSUER_TYPE_LABELS[col] || col;
+      html += `<th class="text-end" title="${fullLabel}" style="min-width: 85px;">${col}</th>`;
+    });
+
+    html += `
+              <th class="text-end pe-3 fw-bold bg-light" style="min-width: 95px;">Total (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    matrix.forEach(row => {
+      html += `
+        <tr>
+          <td class="ps-3 fw-semibold">
+            <span class="d-inline-block rounded-circle me-1" style="width:8px;height:8px;background-color:#0D9488;"></span>
+            ${row.region}
+          </td>
+      `;
+
+      issuerCols.forEach(col => {
+        const val = row[col] || 0;
+        if (val > 0) {
+          html += `<td class="text-end font-monospace">${val.toFixed(2)}%</td>`;
+        } else {
+          html += `<td class="text-end font-monospace text-muted opacity-50">-</td>`;
+        }
+      });
+
+      html += `<td class="text-end pe-3 font-monospace fw-bold bg-light">${(row.total || 0).toFixed(2)}%</td>`;
+      html += `</tr>`;
+    });
+
+    if (totalRow) {
+      html += `
+        <tr class="table-secondary fw-bold border-top border-2" style="border-top-color: #CBD5E1 !important;">
+          <td class="ps-3 fw-bold">Total</td>
+      `;
+
+      issuerCols.forEach(col => {
+        const val = totalRow[col] || 0;
+        html += `<td class="text-end font-monospace fw-bold">${val.toFixed(2)}%</td>`;
+      });
+
+      html += `<td class="text-end pe-3 font-monospace fw-bold text-teal" style="color: #0D9488;">${(totalRow.total || 100).toFixed(2)}%</td>`;
+      html += `</tr>`;
+    }
+
+    html += '</tbody></table></div>';
+    elem.innerHTML = html;
+  }
+
   const Tables = {
     renderDashboardTop10Table,
     renderMultiAssetSummaryTable,
@@ -646,7 +732,8 @@
     renderTop20DetailTable,
     renderFullLookthroughTable,
     renderConcentrationFullTable,
-    renderUniverseSummaryTable
+    renderUniverseSummaryTable,
+    renderBondRegionIssuerTable
   };
 
   if (typeof module !== 'undefined' && module.exports) {

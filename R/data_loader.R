@@ -2,7 +2,7 @@
 # R/data_loader.R
 # Modul zum Laden, Validieren und Bereinigen der ETF-Daten aus Data.xlsx
 # Unterstuetzt Multi-Asset (Aktien, Bonds, Real Estate, Rohstoffe, Cash)
-# Zwei-Tabellen-Architektur: Holdings (Spalten 1:4) + Kennzahlen (Spalten 5:14)
+# Zwei-Tabellen-Architektur: Holdings (Spalten 1:5) + Kennzahlen (Spalten 6:15)
 # ==============================================================================
 
 library(readxl)
@@ -24,7 +24,7 @@ GICS_11_SECTORS <- c(
   "Real Estate"
 )
 
-# Mapping fuer GICS-Sektoren von UPPERCASE zu Title Case
+# Mapping fuer GICS-Sektoren von UPPERCASE / Alias zu Title Case
 GICS_SECTOR_MAP <- c(
   "ENERGY"                 = "Energy",
   "MATERIALS"              = "Materials",
@@ -146,15 +146,27 @@ clean_currency_code <- function(curr) {
   res
 }
 
-#' Hilfsfunktion zur Bereinigung von Sektornamen (UPPERCASE -> Title Case)
+#' Hilfsfunktion zur Bereinigung von Sektornamen (aus Spalte 5 "GICS Sector Name")
 clean_sector_name <- function(sec) {
   if (is.null(sec)) return(NA_character_)
   sec_clean <- trimws(as.character(sec))
-  sec_upper <- toupper(sec_clean)
+  is_invalid <- is.na(sec_clean) | sec_clean %in% c("#N/A", "NULL", "", "NA") | grepl("invalid|unable|collect", sec_clean, ignore.case = TRUE)
   
-  mapped <- GICS_SECTOR_MAP[sec_upper]
-  res <- ifelse(!is.na(mapped), mapped, tools::toTitleCase(tolower(sec_clean)))
-  res[is.na(sec_clean) | sec_clean %in% c("#N/A", "NULL", "", "NA")] <- NA_character_
+  res <- rep(NA_character_, length(sec_clean))
+  for (i in which(!is_invalid)) {
+    s <- sec_clean[i]
+    if (s %in% GICS_11_SECTORS) {
+      res[i] <- s
+    } else {
+      s_upper <- toupper(s)
+      if (s_upper %in% names(GICS_SECTOR_MAP)) {
+        res[i] <- GICS_SECTOR_MAP[s_upper]
+      } else {
+        # Fallback to Title Case
+        res[i] <- tools::toTitleCase(tolower(s))
+      }
+    }
+  }
   res
 }
 
@@ -231,7 +243,7 @@ calc_weighted_harmonic <- function(x, w, min_val = 0.01, max_val = Inf) {
   sum_w / sum(w_v / x_v)
 }
 
-#' Extrahiert Tabelle 1 (Holdings, Spalten 1:4) und Tabelle 2 (Attribute, Spalten 5:14) aus einem Sheet
+#' Extrahiert Tabelle 1 (Holdings, Spalten 1:5) und Tabelle 2 (Attribute, Spalten 6:15) aus einem Sheet
 extract_two_tables <- function(file_path, sheet_name) {
   raw <- read_excel(file_path, sheet = sheet_name, col_names = FALSE)
   hdr_idx <- which(raw[[2]] == "Holding RIC" | raw[[1]] == "Holding RIC")[1]
@@ -239,37 +251,43 @@ extract_two_tables <- function(file_path, sheet_name) {
   
   data_rows <- raw[(hdr_idx + 1):nrow(raw), , drop = FALSE]
   
-  # Tabelle 1: Holdings
-  t1 <- data_rows[, 1:4, drop = FALSE]
-  colnames(t1) <- c("etf_ric", "holding_ric", "holding_name", "weight_raw")
+  # Tabelle 1: Holdings (Spalten 1:5)
+  t1 <- data_rows[, 1:min(5, ncol(data_rows)), drop = FALSE]
+  c1_names <- c("etf_ric", "holding_ric", "holding_name", "weight_raw", "gics_sector_raw")
+  colnames(t1) <- c1_names[1:ncol(t1)]
   t1 <- t1 %>%
     mutate(
       etf_ric = trimws(as.character(etf_ric)),
       holding_ric = trimws(as.character(holding_ric)),
       holding_name = trimws(as.character(holding_name)),
-      weight_raw = suppressWarnings(as.numeric(weight_raw))
+      weight_raw = suppressWarnings(as.numeric(weight_raw)),
+      gics_sector_raw = if ("gics_sector_raw" %in% names(.)) trimws(as.character(gics_sector_raw)) else NA_character_
     ) %>%
     filter(!is.na(etf_ric) & etf_ric != "" & !is.na(holding_ric) & holding_ric != "")
   
-  # Tabelle 2: Instrument-Attribute
-  t2 <- data_rows[, 5:min(14, ncol(data_rows)), drop = FALSE]
-  c_names <- c("type_ric", "raw_sector", "div_yield", "pb", "pe", "ytm", "msci_mv_usd", "raw_redemption_dates", "raw_currency", "issuer_type")
-  colnames(t2) <- c_names[1:ncol(t2)]
-  
-  t2 <- t2 %>%
-    mutate(
-      type_ric = trimws(as.character(type_ric)),
-      raw_sector = if ("raw_sector" %in% names(.)) trimws(as.character(raw_sector)) else NA_character_,
-      div_yield = if ("div_yield" %in% names(.)) suppressWarnings(as.numeric(div_yield)) else NA_real_,
-      pb = if ("pb" %in% names(.)) suppressWarnings(as.numeric(pb)) else NA_real_,
-      pe = if ("pe" %in% names(.)) suppressWarnings(as.numeric(pe)) else NA_real_,
-      ytm = if ("ytm" %in% names(.)) suppressWarnings(as.numeric(ytm)) else NA_real_,
-      msci_mv_usd = if ("msci_mv_usd" %in% names(.)) suppressWarnings(as.numeric(msci_mv_usd)) else NA_real_,
-      raw_redemption_dates = if ("raw_redemption_dates" %in% names(.)) trimws(as.character(raw_redemption_dates)) else NA_character_,
-      raw_currency = if ("raw_currency" %in% names(.)) trimws(as.character(raw_currency)) else NA_character_,
-      issuer_type = if ("issuer_type" %in% names(.)) trimws(as.character(issuer_type)) else NA_character_
-    ) %>%
-    filter(!is.na(type_ric) & type_ric != "")
+  # Tabelle 2: Instrument-Attribute (Spalten 6:15)
+  if (ncol(data_rows) >= 6) {
+    t2 <- data_rows[, 6:min(15, ncol(data_rows)), drop = FALSE]
+    c2_names <- c("type_ric", "sector_nxt_dy_legacy", "div_yield", "pb", "pe", "ytm", "msci_mv_usd", "raw_redemption_dates", "raw_currency", "issuer_type")
+    colnames(t2) <- c2_names[1:ncol(t2)]
+    
+    t2 <- t2 %>%
+      mutate(
+        type_ric = trimws(as.character(type_ric)),
+        # sector_nxt_dy_legacy auskommentiert/ignoriert zu Gunsten von gics_sector_raw in Spalte 5
+        div_yield = if ("div_yield" %in% names(.)) suppressWarnings(as.numeric(div_yield)) else NA_real_,
+        pb = if ("pb" %in% names(.)) suppressWarnings(as.numeric(pb)) else NA_real_,
+        pe = if ("pe" %in% names(.)) suppressWarnings(as.numeric(pe)) else NA_real_,
+        ytm = if ("ytm" %in% names(.)) suppressWarnings(as.numeric(ytm)) else NA_real_,
+        msci_mv_usd = if ("msci_mv_usd" %in% names(.)) suppressWarnings(as.numeric(msci_mv_usd)) else NA_real_,
+        raw_redemption_dates = if ("raw_redemption_dates" %in% names(.)) trimws(as.character(raw_redemption_dates)) else NA_character_,
+        raw_currency = if ("raw_currency" %in% names(.)) trimws(as.character(raw_currency)) else NA_character_,
+        issuer_type = if ("issuer_type" %in% names(.)) trimws(as.character(issuer_type)) else NA_character_
+      ) %>%
+      filter(!is.na(type_ric) & type_ric != "")
+  } else {
+    t2 <- tibble()
+  }
   
   list(t1 = t1, t2 = t2)
 }
@@ -331,7 +349,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       asset_type = ifelse(is.na(asset_type), "Aktien", asset_type),
       etf_label = ifelse(is.na(etf_label), etf_ric, etf_label),
       currency = clean_currency_code(raw_currency),
-      gics_sector = clean_sector_name(raw_sector),
+      gics_sector = clean_sector_name(gics_sector_raw),
       redemption_dates = ifelse(raw_redemption_dates %in% c("#N/A", "NULL", "", "NA"), NA_character_, raw_redemption_dates),
       maturity_date = parse_ddmmyyyy(raw_redemption_dates),
       maturity_years = calc_maturity_years(maturity_date),

@@ -751,3 +751,107 @@ calculate_asset_class_comparison <- function(summary_metrics) {
   
   bind_rows(rows)
 }
+
+#' Berechnet den Fixed-Income-Breakdown nach Region und Issuer-Type fuer ein ausgewaehltes Portfolio
+#' 
+#' @param portfolio_key Schluessel des Portfolios (z.B. "portfolio_1")
+#' @param portfolios_list Liste mit Portfolio-Konfigurationen
+#' @param clean_data Bereinigter Datensatz aus load_etf_data()
+#' @param ticker_df Ticker-Metadaten
+#' @return Eine Liste mit Matrix-Dataframe, Spaltennamen, Gesamtsumme FI-Gewicht und Portfolio-Name
+calculate_bond_region_issuer_breakdown <- function(portfolio_key, portfolios_list, clean_data, ticker_df) {
+  p_conf <- portfolios_list[[portfolio_key]]
+  if (is.null(p_conf) || !isTRUE(p_conf$enabled)) {
+    return(list(
+      matrix_df = tibble(),
+      issuer_cols = character(),
+      total_fi_weight = 0,
+      portfolio_name = if (!is.null(p_conf$name)) p_conf$name else portfolio_key,
+      is_active = FALSE
+    ))
+  }
+  
+  p_weights <- unlist(p_conf$weights)
+  p_weights <- p_weights[!is.na(p_weights) & p_weights > 0]
+  if (length(p_weights) == 0 || sum(p_weights) <= 0) {
+    return(list(
+      matrix_df = tibble(),
+      issuer_cols = character(),
+      total_fi_weight = 0,
+      portfolio_name = p_conf$name,
+      is_active = FALSE
+    ))
+  }
+  
+  tot_pw <- sum(p_weights)
+  p_norm <- (p_weights / tot_pw) * 100
+  active_etfs <- names(p_norm)
+  
+  # Filtere nur Bond-Positionen
+  bd_holdings <- clean_data %>%
+    dplyr::filter(asset_type == "Bonds" & etf_ric %in% active_etfs & !is.na(weight_norm) & weight_norm > 0) %>%
+    dplyr::mutate(
+      port_weight_for_etf = p_norm[etf_ric],
+      eff_weight = weight_norm * (port_weight_for_etf / 100),
+      bond_region = dplyr::case_when(
+        etf_ric == "EMB.O" ~ "EM HC",
+        etf_ric == "ELD" ~ "EM LC",
+        TRUE ~ etf_region
+      ),
+      issuer_type_clean = dplyr::case_when(
+        is.na(issuer_type) | issuer_type %in% c("#N/A", "NULL", "", "NA") ~ "Andere",
+        TRUE ~ issuer_type
+      )
+    )
+  
+  tot_fi_weight <- sum(bd_holdings$eff_weight, na.rm = TRUE)
+  if (tot_fi_weight <= 0) {
+    return(list(
+      matrix_df = tibble(),
+      issuer_cols = character(),
+      total_fi_weight = 0,
+      portfolio_name = p_conf$name,
+      is_active = TRUE
+    ))
+  }
+  
+  # Prozentual auf FI-Segment skalieren
+  bd_holdings <- bd_holdings %>%
+    dplyr::mutate(fi_pct = (eff_weight / tot_fi_weight) * 100)
+  
+  # 2D Matrix aggregieren
+  mat <- bd_holdings %>%
+    dplyr::group_by(bond_region, issuer_type_clean) %>%
+    dplyr::summarise(pct = sum(fi_pct, na.rm = TRUE), .groups = "drop") %>%
+    tidyr::pivot_wider(names_from = issuer_type_clean, values_from = pct, values_fill = 0)
+  
+  # Spalten nach Standard sortieren
+  iss_cols <- setdiff(names(mat), "bond_region")
+  iss_order <- c("SOV", "FIN", "CORP", "AGCY", "SUPR", "SSOV", "Andere")
+  ordered_iss_cols <- c(intersect(iss_order, iss_cols), setdiff(iss_cols, iss_order))
+  ordered_cols <- c("bond_region", ordered_iss_cols)
+  mat <- mat[, ordered_cols]
+  
+  # Regionen sortieren: Schweiz, Eurozone, Nordamerika, UK, EM HC, EM LC
+  region_order <- c("Schweiz", "Eurozone", "Nordamerika", "UK", "EM HC", "EM LC")
+  mat$order_idx <- match(mat$bond_region, region_order)
+  mat$order_idx[is.na(mat$order_idx)] <- 999
+  mat <- mat %>% dplyr::arrange(order_idx) %>% dplyr::select(-order_idx)
+  
+  # Zeilensumme (Total pro Region)
+  mat$Total <- rowSums(mat[, ordered_iss_cols, drop = FALSE])
+  
+  # Spaltensummen (Total-Zeile)
+  sum_row <- as.list(colSums(mat[, c(ordered_iss_cols, "Total"), drop = FALSE]))
+  sum_row$bond_region <- "Total"
+  mat_with_total <- dplyr::bind_rows(mat, dplyr::as_tibble(sum_row))
+  
+  list(
+    matrix_df = mat_with_total,
+    issuer_cols = ordered_iss_cols,
+    total_fi_weight = tot_fi_weight,
+    portfolio_name = p_conf$name,
+    is_active = TRUE
+  )
+}
+

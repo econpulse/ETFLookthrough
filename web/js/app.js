@@ -22,6 +22,7 @@
     selectedDrilldownSector: "Health Care",
     selectedFullTablePort: "portfolio_1",
     selectedFullTableAssetClass: "all",
+    selectedBondBreakdownPort: "portfolio_1",
     fullTableSearch: "",
     saveStatus: "Gespeichert"
   };
@@ -262,6 +263,35 @@
       Tables.renderCurrencyCompareTable("table_overall_currency_detail", assetCurrMetrics.overallCurrencyCompare);
       Tables.renderEquityCurrencyDetailTable("table_equity_currency_detail", assetCurrMetrics.equityCurrency);
       Tables.renderBondCurrencyDetailTable("table_bond_currency_detail", assetCurrMetrics.bondCurrency);
+
+      // Bond Region & Issuer Type Breakdown
+      const bondSel = document.getElementById('select_bond_breakdown_portfolio');
+      if (bondSel) {
+        let optHtml = '';
+        ["portfolio_1", "portfolio_2", "portfolio_3"].forEach(pk => {
+          const conf = state.portfolios[pk];
+          if (conf && conf.enabled) {
+            optHtml += `<option value="${pk}" ${state.selectedBondBreakdownPort === pk ? 'selected' : ''}>${conf.name || pk}</option>`;
+          }
+        });
+        bondSel.innerHTML = optHtml;
+        if (!bondSel.querySelector(`option[value="${state.selectedBondBreakdownPort}"]`)) {
+          state.selectedBondBreakdownPort = bondSel.value || "portfolio_1";
+        }
+      }
+
+      const bondBreakdown = Analytics.calculateBondRegionIssuerBreakdown(
+        state.selectedBondBreakdownPort,
+        state.portfolios,
+        state.data.holdings,
+        state.data.tickers
+      );
+      Tables.renderBondRegionIssuerTable("table_bond_region_issuer_breakdown", bondBreakdown);
+      
+      const badge = document.getElementById('bond_breakdown_fi_total_badge');
+      if (badge) {
+        badge.innerText = `FI-Anteil am Portfolio: ${(bondBreakdown.totalFiWeight || 0).toFixed(1)}%`;
+      }
     } else if (state.activeTab === "tab_sectors") {
       Charts.renderDashboardSectors("plot_sector_pie", sectorData, state.activeSidebarPort, pConf.name);
       Charts.renderSectorBarsPlot("plot_sector_bars", sectorData, state.portfolios);
@@ -545,6 +575,12 @@
     // Dashboard Region Delta Dropdown
     document.getElementById('select-dash-region-delta-pair')?.addEventListener('change', (e) => {
       state.selectedDashRegionDeltaPair = e.target.value;
+      updateApp();
+    });
+
+    // Bond Region Issuer Breakdown Portfolio Dropdown
+    document.getElementById('select_bond_breakdown_portfolio')?.addEventListener('change', (e) => {
+      state.selectedBondBreakdownPort = e.target.value;
       updateApp();
     });
 

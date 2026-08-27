@@ -35,9 +35,10 @@ concMetrics.forEach(m => {
   console.log(`${m.portfolio_name}: N_eff = ${m.n_eff}, HHI = ${m.hhi}, Top10 = ${m.top10_weight}%, Gini = ${m.gini_coefficient}`);
 });
 
-console.log("\n--- MULTI-ASSET & RENDITEKENNZAHLEN ---");
-assetMetrics.summaryMetrics.forEach(m => {
-  console.log(`${m.portfolio_name}: Aktien = ${m.equity_weight_pct}%, Bonds = ${m.bond_weight_pct}%, DivYield = ${m.equity_weighted_div_yield}%, KGV = ${m.equity_weighted_pe}x, YTM = ${m.bond_weighted_ytm}%, Duration = ${m.bond_weighted_mod_duration} J.`);
-});
+console.log("\n--- ANLEIHEN (FI) BREAKDOWN NACH REGION & ISSUER TYPE (P1: TAA) ---");
+const bondBreakdown = Analytics.calculateBondRegionIssuerBreakdown("portfolio_1", savedPortfolios, etfData.holdings, etfData.tickers);
+console.log(`FI Anteil: ${bondBreakdown.totalFiWeight.toFixed(1)}% | Regionen: ${bondBreakdown.matrix.map(r => r.region).join(', ')}`);
+console.table(bondBreakdown.matrix);
 
 console.log("\n>> VALIDIERUNG ERFOLGREICH BEENDET.");
+

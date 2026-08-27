@@ -831,6 +831,166 @@
     });
   }
 
+  function calculateBondRegionIssuerBreakdown(portfolioKey, portfoliosConfig, cleanHoldings, tickers) {
+    const pConf = (portfoliosConfig || {})[portfolioKey];
+    if (!pConf || !pConf.enabled) {
+      return {
+        matrix: [],
+        totalRow: null,
+        issuerCols: [],
+        totalFiWeight: 0,
+        portfolioName: pConf ? pConf.name : portfolioKey,
+        isActive: false
+      };
+    }
+
+    const activeEntries = Object.entries(pConf.weights || {}).filter(([ric, w]) => w != null && !isNaN(w) && Number(w) > 0);
+    if (activeEntries.length === 0) {
+      return {
+        matrix: [],
+        totalRow: null,
+        issuerCols: [],
+        totalFiWeight: 0,
+        portfolioName: pConf.name,
+        isActive: false
+      };
+    }
+
+    const totalRawWeight = activeEntries.reduce((sum, [, w]) => sum + Number(w), 0);
+    if (totalRawWeight <= 0) {
+      return {
+        matrix: [],
+        totalRow: null,
+        issuerCols: [],
+        totalFiWeight: 0,
+        portfolioName: pConf.name,
+        isActive: false
+      };
+    }
+
+    const normalizedPortWeights = {};
+    for (const [ric, w] of activeEntries) {
+      normalizedPortWeights[ric] = (Number(w) / totalRawWeight) * 100;
+    }
+
+    // Filter bond holdings
+    const bondHoldings = [];
+    let totalFiWeight = 0;
+
+    for (let i = 0; i < cleanHoldings.length; i++) {
+      const h = cleanHoldings[i];
+      if (h.asset_type !== "Bonds") continue;
+
+      const portWeightForEtf = normalizedPortWeights[h.etf_ric];
+      if (portWeightForEtf == null || portWeightForEtf <= 0) continue;
+
+      const baseWeight = h.weight_norm ?? h.weight_raw ?? 0;
+      if (baseWeight <= 0) continue;
+
+      const effWeight = baseWeight * (portWeightForEtf / 100);
+      totalFiWeight += effWeight;
+
+      let bondRegion = h.etf_region || "Global";
+      if (h.etf_ric === "EMB.O") {
+        bondRegion = "EM HC";
+      } else if (h.etf_ric === "ELD") {
+        bondRegion = "EM LC";
+      }
+
+      let issuerType = h.issuer_type;
+      if (!issuerType || issuerType === "#N/A" || issuerType === "NULL" || issuerType === "NA") {
+        issuerType = "Andere";
+      }
+
+      bondHoldings.push({
+        effWeight,
+        bondRegion,
+        issuerType
+      });
+    }
+
+    if (totalFiWeight <= 0 || bondHoldings.length === 0) {
+      return {
+        matrix: [],
+        totalRow: null,
+        issuerCols: [],
+        totalFiWeight: 0,
+        portfolioName: pConf.name,
+        isActive: true
+      };
+    }
+
+    // Aggregate matrix: region -> issuerType -> fiPct
+    const matrixMap = new Map();
+    const discoveredIssuers = new Set();
+
+    for (const bh of bondHoldings) {
+      const fiPct = (bh.effWeight / totalFiWeight) * 100;
+      if (!matrixMap.has(bh.bondRegion)) {
+        matrixMap.set(bh.bondRegion, new Map());
+      }
+      const regMap = matrixMap.get(bh.bondRegion);
+      regMap.set(bh.issuerType, (regMap.get(bh.issuerType) || 0) + fiPct);
+      discoveredIssuers.add(bh.issuerType);
+    }
+
+    const issOrder = ["SOV", "FIN", "CORP", "AGCY", "SUPR", "SSOV", "Andere"];
+    const orderedIssCols = [];
+    for (const iss of issOrder) {
+      if (discoveredIssuers.has(iss)) {
+        orderedIssCols.push(iss);
+      }
+    }
+    for (const iss of discoveredIssuers) {
+      if (!orderedIssCols.includes(iss)) {
+        orderedIssCols.push(iss);
+      }
+    }
+
+    const regionOrder = ["Schweiz", "Eurozone", "Nordamerika", "UK", "EM HC", "EM LC"];
+    const allRegions = Array.from(matrixMap.keys()).sort((a, b) => {
+      const idxA = regionOrder.indexOf(a);
+      const idxB = regionOrder.indexOf(b);
+      return (idxA !== -1 ? idxA : 999) - (idxB !== -1 ? idxB : 999);
+    });
+
+    const rows = [];
+    const colTotals = {};
+    orderedIssCols.forEach(col => { colTotals[col] = 0; });
+    let grandTotal = 0;
+
+    for (const reg of allRegions) {
+      const regMap = matrixMap.get(reg);
+      const row = { region: reg };
+      let rowTotal = 0;
+
+      for (const col of orderedIssCols) {
+        const val = regMap.get(col) || 0;
+        row[col] = val;
+        rowTotal += val;
+        colTotals[col] += val;
+      }
+      row.total = rowTotal;
+      grandTotal += rowTotal;
+      rows.push(row);
+    }
+
+    const totalRow = {
+      region: "Total",
+      ...colTotals,
+      total: grandTotal
+    };
+
+    return {
+      matrix: rows,
+      totalRow,
+      issuerCols: orderedIssCols,
+      totalFiWeight,
+      portfolioName: pConf.name,
+      isActive: true
+    };
+  }
+
   const Analytics = {
     GICS_11_SECTORS,
     GICS_SECTOR_COLORS,
@@ -848,7 +1008,8 @@
     calculateConcentrationMetrics,
     calculateLorenzCurves,
     calculatePortfolioAssetAndCurrencyMetrics,
-    calculateAssetClassComparison
+    calculateAssetClassComparison,
+    calculateBondRegionIssuerBreakdown
   };
 
   if (typeof module !== 'undefined' && module.exports) {
