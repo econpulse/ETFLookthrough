@@ -18,14 +18,14 @@ ports <- load_portfolios("saved_portfolios.json", available_etfs = d$available_e
 
 calc <- calculate_all_portfolios(ports, d$data_clean, TRUE)
 conc <- calculate_concentration_metrics(calc)
-metrics <- calculate_portfolio_asset_and_currency_metrics(calc)
+metrics <- calculate_portfolio_asset_and_currency_metrics(calc, d$ticker_df, d$corr_matrix, ports)
 sec <- calculate_sector_comparison(calc)
 
 cat("--- R CONCENTRATION METRICS ---\n")
 print(conc %>% select(portfolio_name, n_eff, hhi, top10_weight, gini_coefficient))
 
-cat("\n--- R SUMMARY METRICS ---\n")
-print(metrics$summary_metrics %>% select(portfolio_name, equity_weight_pct, bond_weight_pct, real_estate_weight_pct, equity_weighted_div_yield, equity_weighted_pe, bond_weighted_ytm, bond_weighted_mod_duration, bond_weighted_maturity_years))
+cat("\n--- R SUMMARY METRICS (inkl. Risk/Return) ---\n")
+print(metrics$summary_metrics %>% select(portfolio_name, equity_weight_pct, bond_weight_pct, expected_return, expected_vol, sharpe_ratio, equity_weighted_div_yield, equity_weighted_pe, bond_weighted_ytm, bond_weighted_mod_duration, bond_weighted_maturity_years))
 
 cat("\n--- R TOP 5 GICS SECTORS (P1) ---\n")
 print(sec %>% arrange(desc(weight_portfolio_1)) %>% head(5) %>% select(gics_sector, weight_portfolio_1, delta_p1_p2))

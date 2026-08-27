@@ -19,6 +19,20 @@ if (!dir.exists("web/data")) {
   dir.create("web/data", recursive = TRUE)
 }
 
+# Korrelationsmatrix in geschachtelte Liste konvertieren
+corr_list <- list()
+if (!is.null(loaded$corr_matrix) && nrow(loaded$corr_matrix) > 0) {
+  r_names <- rownames(loaded$corr_matrix)
+  c_names <- colnames(loaded$corr_matrix)
+  for (i in seq_along(r_names)) {
+    row_map <- list()
+    for (j in seq_along(c_names)) {
+      row_map[[c_names[j]]] <- loaded$corr_matrix[i, j]
+    }
+    corr_list[[r_names[i]]] <- row_map
+  }
+}
+
 # Struktur für die Web-App vorbereiten
 export_payload <- list(
   metadata = list(
@@ -30,6 +44,7 @@ export_payload <- list(
     gics_sectors = GICS_11_SECTORS
   ),
   tickers = loaded$ticker_df,
+  correlations = corr_list,
   etf_summary = loaded$etf_summary,
   holdings = loaded$data_clean
 )

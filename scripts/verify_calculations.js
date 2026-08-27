@@ -17,7 +17,7 @@ const calcPorts = Analytics.calculateAllPortfolios(savedPortfolios, etfData.hold
 const sectorData = Analytics.calculateSectorComparison(calcPorts);
 const topHoldings = Analytics.calculateTopHoldings(calcPorts, 20);
 const concMetrics = Analytics.calculateConcentrationMetrics(calcPorts);
-const assetMetrics = Analytics.calculatePortfolioAssetAndCurrencyMetrics(calcPorts);
+const assetMetrics = Analytics.calculatePortfolioAssetAndCurrencyMetrics(calcPorts, etfData.tickers, etfData.correlations, savedPortfolios);
 const endTime = performance.now();
 
 console.log(`>> Berechnungszeit für alle Portfolios & Metriken: ${(endTime - startTime).toFixed(2)} ms\n`);
@@ -37,7 +37,7 @@ concMetrics.forEach(m => {
 
 console.log("\n--- MULTI-ASSET & RENDITEKENNZAHLEN ---");
 assetMetrics.summaryMetrics.forEach(m => {
-  console.log(`${m.portfolio_name}: Aktien = ${m.equity_weight_pct}%, Bonds = ${m.bond_weight_pct}%, DivYield = ${m.equity_weighted_div_yield}%, KGV = ${m.equity_weighted_pe}x, YTM = ${m.bond_weighted_ytm}%, Duration = ${m.bond_weighted_mod_duration} J., Restlaufzeit = ${m.bond_weighted_maturity_years} J.`);
+  console.log(`${m.portfolio_name}: Aktien = ${m.equity_weight_pct}%, Bonds = ${m.bond_weight_pct}%, ExpRet = ${m.expected_return}%, ExpVol = ${m.expected_vol}%, Sharpe = ${m.sharpe_ratio}, DivYield = ${m.equity_weighted_div_yield}%, KGV = ${m.equity_weighted_pe}x, YTM = ${m.bond_weighted_ytm}%, Duration = ${m.bond_weighted_mod_duration} J., Restlaufzeit = ${m.bond_weighted_maturity_years} J.`);
 });
 
 console.log("\n--- ANLEIHEN (FI) BREAKDOWN NACH REGION & ISSUER TYPE (P1: TAA) ---");

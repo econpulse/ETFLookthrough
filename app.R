@@ -1327,8 +1327,13 @@ server <- function(input, output, session) {
   })
   
   asset_currency_metrics_results <- reactive({
-    req(calculated_results())
-    calculate_portfolio_asset_and_currency_metrics(calculated_results())
+    req(calculated_results(), raw_data_env$ticker_df)
+    calculate_portfolio_asset_and_currency_metrics(
+      calculated_portfolios = calculated_results(),
+      ticker_df = raw_data_env$ticker_df,
+      corr_matrix = raw_data_env$corr_matrix,
+      raw_portfolios = portfolios_state()
+    )
   })
   
   sector_results <- reactive({
@@ -1399,32 +1404,42 @@ server <- function(input, output, session) {
           div(
             class = "row g-2 text-center",
             div(
-              class = "col-2",
+              class = "col-3 col-md-3",
+              div(class = "small text-primary fw-semibold", "Erw. Rendite"),
+              div(class = "fs-6 fw-bold text-primary", if (is.na(am$expected_return)) "-" else sprintf("%.2f%%", am$expected_return))
+            ),
+            div(
+              class = "col-3 col-md-3",
+              div(class = "small text-muted", "Erw. Vola"),
+              div(class = "fs-6 fw-bold text-dark", if (is.na(am$expected_vol)) "-" else sprintf("%.2f%%", am$expected_vol))
+            ),
+            div(
+              class = "col-3 col-md-3",
+              div(class = "small text-success fw-semibold", "Sharpe Ratio"),
+              div(class = "fs-6 fw-bold text-success", if (is.na(am$sharpe_ratio)) "-" else sprintf("%.2f", am$sharpe_ratio))
+            ),
+            div(
+              class = "col-3 col-md-3",
               div(class = "small text-muted", "Div. Yield"),
-              div(class = "fs-6 fw-bold text-primary", if (is.na(am$equity_weighted_div_yield)) "-" else sprintf("%.2f%%", am$equity_weighted_div_yield))
+              div(class = "fs-6 fw-bold text-secondary", if (is.na(am$equity_weighted_div_yield)) "-" else sprintf("%.2f%%", am$equity_weighted_div_yield))
             ),
             div(
-              class = "col-2",
+              class = "col-3 col-md-3",
               div(class = "small text-muted", "KGV (P/E)"),
-              div(class = "fs-6 fw-bold text-primary", if (is.na(am$equity_weighted_pe) || am$equity_weighted_pe <= 0) "-" else sprintf("%.1fx", am$equity_weighted_pe))
+              div(class = "fs-6 fw-bold text-secondary", if (is.na(am$equity_weighted_pe) || am$equity_weighted_pe <= 0) "-" else sprintf("%.1fx", am$equity_weighted_pe))
             ),
             div(
-              class = "col-2",
-              div(class = "small text-muted", "KBV (P/B)"),
-              div(class = "fs-6 fw-bold text-secondary", if (is.na(am$equity_weighted_pb) || am$equity_weighted_pb <= 0) "-" else sprintf("%.2fx", am$equity_weighted_pb))
-            ),
-            div(
-              class = "col-2",
+              class = "col-3 col-md-3",
               div(class = "small text-muted", "YTM (Bonds)"),
-              div(class = "fs-6 fw-bold text-success", if (is.na(am$bond_weighted_ytm)) "-" else sprintf("%.2f%%", am$bond_weighted_ytm))
+              div(class = "fs-6 fw-bold text-teal", style = "color:#0D9488;", if (is.na(am$bond_weighted_ytm)) "-" else sprintf("%.2f%%", am$bond_weighted_ytm))
             ),
             div(
-              class = "col-2",
+              class = "col-3 col-md-3",
               div(class = "small text-muted", "Duration"),
               div(class = "fs-6 fw-bold text-secondary", if (is.na(am$bond_weighted_mod_duration)) "-" else sprintf("%.2f J.", am$bond_weighted_mod_duration))
             ),
             div(
-              class = "col-2",
+              class = "col-3 col-md-3",
               div(class = "small text-muted", "N_eff (Aktien)"),
               div(class = "fs-6 fw-bold text-dark", if (nrow(cm) > 0 && cm$n_eff > 0) cm$n_eff else "-")
             )
@@ -1457,7 +1472,7 @@ server <- function(input, output, session) {
     
     reactable(
       summary_df %>% dplyr::select(
-        portfolio_name, equity_weight_pct, bond_weight_pct, real_estate_weight_pct, commodity_weight_pct, cash_weight_pct, equity_weighted_div_yield, equity_weighted_pe, equity_weighted_pb, bond_weighted_ytm, bond_weighted_mod_duration, bond_weighted_maturity_years
+        portfolio_name, equity_weight_pct, bond_weight_pct, real_estate_weight_pct, commodity_weight_pct, cash_weight_pct, expected_return, expected_vol, sharpe_ratio, equity_weighted_div_yield, equity_weighted_pe, equity_weighted_pb, bond_weighted_ytm, bond_weighted_mod_duration, bond_weighted_maturity_years
       ),
       columns = list(
         portfolio_name = colDef(name = "Portfolio", minWidth = 150, style = list(fontWeight = 600)),
@@ -1466,6 +1481,24 @@ server <- function(input, output, session) {
         real_estate_weight_pct = colDef(name = "Real Estate (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
         commodity_weight_pct = colDef(name = "Rohstoffe (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
         cash_weight_pct = colDef(name = "Cash (%)", align = "right", cell = function(v) sprintf("%.1f%%", v)),
+        expected_return = colDef(
+          name = "Erw. Rendite (p.a.)",
+          align = "right",
+          style = list(color = "#1E40AF", fontWeight = 700, backgroundColor = "#EFF6FF"),
+          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f%%", v)
+        ),
+        expected_vol = colDef(
+          name = "Erw. Vola (p.a.)",
+          align = "right",
+          style = list(color = "#1E293B", fontWeight = 600, backgroundColor = "#F8FAFC"),
+          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f%%", v)
+        ),
+        sharpe_ratio = colDef(
+          name = "Sharpe Ratio",
+          align = "right",
+          style = list(color = "#16A34A", fontWeight = 700, backgroundColor = "#F0FDF4"),
+          cell = function(v) if (is.na(v)) "-" else sprintf("%.2f", v)
+        ),
         equity_weighted_div_yield = colDef(
           name = "Gew. Div. Yield",
           align = "right",

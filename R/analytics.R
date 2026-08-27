@@ -492,12 +492,81 @@ calculate_lorenz_curves <- function(calculated_portfolios) {
   bind_rows(curves_list)
 }
 
+#' Berechnet Expected Return, Expected Volatility und Sharpe Ratio fuer ein Portfolio
+#' 
+#' @param p_weights Benannter Vektor der ETF-Gewichte (z.B. c("CHSPI.S" = 14, "CHESG.S" = 14, ...))
+#' @param ticker_df Ticker Metadaten mit Spalten 'ric', 'ret', 'vol'
+#' @param corr_matrix Quadratische Korrelationsmatrix mit RICs als Zeilen- und Spaltennamen
+#' @return Liste mit expected_return, expected_vol, sharpe_ratio
+calculate_portfolio_risk_return <- function(p_weights, ticker_df, corr_matrix = NULL) {
+  p_weights <- p_weights[!is.na(p_weights) & p_weights > 0]
+  if (length(p_weights) == 0 || sum(p_weights) <= 0 || is.null(ticker_df) || nrow(ticker_df) == 0) {
+    return(list(expected_return = NA_real_, expected_vol = NA_real_, sharpe_ratio = NA_real_))
+  }
+  
+  # Nur valide Ticker berücksichtigen
+  valid_mask <- names(p_weights) %in% ticker_df$ric
+  p_weights <- p_weights[valid_mask]
+  if (length(p_weights) == 0 || sum(p_weights) <= 0) {
+    return(list(expected_return = NA_real_, expected_vol = NA_real_, sharpe_ratio = NA_real_))
+  }
+  
+  tot_w <- sum(p_weights)
+  w_norm <- p_weights / tot_w
+  rics <- names(w_norm)
+  
+  ret_vec <- sapply(rics, function(r) {
+    idx <- which(ticker_df$ric == r)
+    if (length(idx) > 0 && !is.na(ticker_df$ret[idx[1]])) ticker_df$ret[idx[1]] else 0
+  })
+  
+  vol_vec <- sapply(rics, function(r) {
+    idx <- which(ticker_df$ric == r)
+    if (length(idx) > 0 && !is.na(ticker_df$vol[idx[1]])) ticker_df$vol[idx[1]] else 0
+  })
+  
+  exp_ret <- sum(w_norm * ret_vec)
+  
+  # Submatrix aus Korrelationen
+  sub_corr <- matrix(0, nrow = length(rics), ncol = length(rics), dimnames = list(rics, rics))
+  diag(sub_corr) <- 1.0
+  
+  if (!is.null(corr_matrix) && nrow(corr_matrix) > 0) {
+    for (i in seq_along(rics)) {
+      r_i <- rics[i]
+      for (j in seq_along(rics)) {
+        r_j <- rics[j]
+        if (r_i %in% rownames(corr_matrix) && r_j %in% colnames(corr_matrix)) {
+          sub_corr[i, j] <- corr_matrix[r_i, r_j]
+        } else if (i == j) {
+          sub_corr[i, j] <- 1.0
+        }
+      }
+    }
+  }
+  
+  cov_mat <- outer(vol_vec, vol_vec, "*") * sub_corr
+  var_p <- as.numeric(t(w_norm) %*% cov_mat %*% w_norm)
+  exp_vol <- sqrt(max(0, var_p))
+  
+  sharpe <- if (!is.na(exp_vol) && exp_vol > 0) exp_ret / exp_vol else NA_real_
+  
+  list(
+    expected_return = exp_ret,
+    expected_vol = exp_vol,
+    sharpe_ratio = sharpe
+  )
+}
+
 #' Berechnet die Assetklassen- und Währungsallokation sowie Kennzahlen für alle Portfolios
 #' Inklusive YTM und Modified Duration nach Währung für Anleihen
 #' 
 #' @param calculated_portfolios Ergebnis aus calculate_all_portfolios()
+#' @param ticker_df Ticker Metadaten mit ret und vol
+#' @param corr_matrix Korrelationsmatrix
+#' @param raw_portfolios Liste der urspruenglichen Portfolio-Konfigurationen
 #' @return Liste mit Dataframes für Asset Allocation, Gesamt-Währungen, Aktien-Währungen, Bond-Währungen (inkl. YTM & Duration)
-calculate_portfolio_asset_and_currency_metrics <- function(calculated_portfolios) {
+calculate_portfolio_asset_and_currency_metrics <- function(calculated_portfolios, ticker_df = NULL, corr_matrix = NULL, raw_portfolios = NULL) {
   asset_alloc_list <- list()
   overall_curr_list <- list()
   equity_curr_list <- list()
@@ -635,6 +704,17 @@ calculate_portfolio_asset_and_currency_metrics <- function(calculated_portfolios
 
       cmd_h <- h %>% dplyr::filter(asset_type == "Rohstoffe")
       cmd_w <- sum(cmd_h$portfolio_weight, na.rm = TRUE)
+      
+      # Risk/Return Metriken berechnen
+      p_weights_raw <- if (!is.null(raw_portfolios) && !is.null(raw_portfolios[[p_key]]$weights)) {
+        unlist(raw_portfolios[[p_key]]$weights)
+      } else if (!is.null(p_res$weights)) {
+        unlist(p_res$weights)
+      } else {
+        numeric()
+      }
+      
+      rr <- calculate_portfolio_risk_return(p_weights_raw, ticker_df, corr_matrix)
 
       summary_metrics_list[[p_key]] <- tibble(
         portfolio_key = p_key,
@@ -652,7 +732,10 @@ calculate_portfolio_asset_and_currency_metrics <- function(calculated_portfolios
         equity_weighted_pb = if (!is.na(weighted_pb)) round(weighted_pb, 2) else NA_real_,
         bond_weighted_ytm = if (!is.na(weighted_ytm)) round(weighted_ytm, 2) else NA_real_,
         bond_weighted_mod_duration = if (!is.na(weighted_dur)) round(weighted_dur, 2) else NA_real_,
-        bond_weighted_maturity_years = if (!is.na(weighted_mat)) round(weighted_mat, 2) else NA_real_
+        bond_weighted_maturity_years = if (!is.na(weighted_mat)) round(weighted_mat, 2) else NA_real_,
+        expected_return = if (!is.na(rr$expected_return)) round(rr$expected_return, 2) else NA_real_,
+        expected_vol = if (!is.na(rr$expected_vol)) round(rr$expected_vol, 2) else NA_real_,
+        sharpe_ratio = if (!is.na(rr$sharpe_ratio)) round(rr$sharpe_ratio, 2) else NA_real_
       )
     } else {
       summary_metrics_list[[p_key]] <- tibble(
@@ -671,7 +754,10 @@ calculate_portfolio_asset_and_currency_metrics <- function(calculated_portfolios
         equity_weighted_pb = NA_real_,
         bond_weighted_ytm = NA_real_,
         bond_weighted_mod_duration = NA_real_,
-        bond_weighted_maturity_years = NA_real_
+        bond_weighted_maturity_years = NA_real_,
+        expected_return = NA_real_,
+        expected_vol = NA_real_,
+        sharpe_ratio = NA_real_
       )
     }
   }

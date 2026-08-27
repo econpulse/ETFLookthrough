@@ -292,10 +292,56 @@ extract_two_tables <- function(file_path, sheet_name) {
   list(t1 = t1, t2 = t2)
 }
 
+#' Extrahiert die Korrelationsmatrix aus dem Sheet 'corr'
+#' Filtert leere Zeilen/Spalten heraus und gibt eine symmetrische Matrix zurueck
+extract_correlation_matrix <- function(file_path) {
+  sheets <- excel_sheets(file_path)
+  if (!("corr" %in% sheets)) return(matrix(numeric(0), nrow = 0, ncol = 0))
+  
+  c_raw <- as.matrix(read_excel(file_path, sheet = "corr", col_names = FALSE))
+  if (nrow(c_raw) < 2 || ncol(c_raw) < 2) return(matrix(numeric(0), nrow = 0, ncol = 0))
+  
+  row_headers <- trimws(as.character(c_raw[, 1]))
+  col_headers <- trimws(as.character(c_raw[1, ]))
+  
+  valid_row_idx <- which(!is.na(row_headers) & row_headers != "" & row_headers != "NA" & seq_along(row_headers) > 1)
+  valid_col_idx <- which(!is.na(col_headers) & col_headers != "" & col_headers != "NA" & seq_along(col_headers) > 1)
+  
+  row_rics <- row_headers[valid_row_idx]
+  col_rics <- col_headers[valid_col_idx]
+  all_rics <- union(row_rics, col_rics)
+  if (length(all_rics) == 0) return(matrix(numeric(0), nrow = 0, ncol = 0))
+  
+  corr_mat <- matrix(0, nrow = length(all_rics), ncol = length(all_rics), dimnames = list(all_rics, all_rics))
+  diag(corr_mat) <- 1.0
+  
+  for (r_i in valid_row_idx) {
+    r_ric <- row_headers[r_i]
+    for (c_j in valid_col_idx) {
+      c_ric <- col_headers[c_j]
+      val <- suppressWarnings(as.numeric(c_raw[r_i, c_j]))
+      if (!is.na(val)) {
+        corr_mat[r_ric, c_ric] <- val
+      }
+    }
+  }
+  
+  # Symmetrisieren falls noetig
+  for (i in seq_len(nrow(corr_mat))) {
+    for (j in seq_len(ncol(corr_mat))) {
+      if (corr_mat[i, j] == 0 && i != j && corr_mat[j, i] != 0) {
+        corr_mat[i, j] <- corr_mat[j, i]
+      }
+    }
+  }
+  
+  corr_mat
+}
+
 #' Laedt und bereinigt die ETF-Daten aus Data.xlsx (Multi-Asset faehig)
 #' 
 #' @param file_path Pfad zur Excel-Datei (Standard: "Data.xlsx")
-#' @return Eine Liste mit 'ticker_df', 'data_clean', 'etf_summary', 'raw_row_count', 'clean_row_count', etc.
+#' @return Eine Liste mit 'ticker_df', 'data_clean', 'etf_summary', 'corr_matrix', 'raw_row_count', 'clean_row_count', etc.
 load_etf_data <- function(file_path = "Data.xlsx") {
   if (!file.exists(file_path)) {
     stop(paste("Datei nicht gefunden:", file_path))
@@ -317,8 +363,13 @@ load_etf_data <- function(file_path = "Data.xlsx") {
         ifelse(is.na(asset_type) | trimws(as.character(asset_type)) == "", "Aktien", trimws(as.character(asset_type)))
       } else {
         "Aktien"
-      }
+      },
+      ret = if ("ret" %in% names(.)) suppressWarnings(as.numeric(ret)) else NA_real_,
+      vol = if ("vol" %in% names(.)) suppressWarnings(as.numeric(vol)) else NA_real_
     )
+  
+  # 1b. Korrelationsmatrix aus Sheet 'corr' laden
+  corr_matrix <- extract_correlation_matrix(file_path)
   
   # 2. Tabellen aus 'data' und 'Manuell' extrahieren
   sheets_available <- excel_sheets(file_path)
@@ -480,6 +531,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
     ticker_df = ticker_df,
     data_clean = data_clean,
     etf_summary = etf_summary,
+    corr_matrix = corr_matrix,
     raw_row_count = raw_row_count,
     clean_row_count = nrow(data_clean),
     ignored_row_count = ignored_row_count,

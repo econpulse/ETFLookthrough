@@ -104,6 +104,9 @@
               <th>Real Estate (%)</th>
               <th>Rohstoffe (%)</th>
               <th>Cash (%)</th>
+              <th class="table-primary text-primary fw-bold" title="Annualisierte erwartete Portfoliorendite">Erw. Rendite (p.a.)</th>
+              <th class="table-primary text-primary fw-bold" title="Annualisierte erwartete Portfoliovolatilität">Erw. Vola (p.a.)</th>
+              <th class="table-primary text-primary fw-bold" title="Sharpe Ratio (Rendite / Vola)">Sharpe Ratio</th>
               <th>Div. Rendite</th>
               <th>KGV</th>
               <th>KBV</th>
@@ -125,6 +128,9 @@
           <td><span class="badge" style="background-color:#FDF2F0;color:#8C564B;border:1px solid #F5C6CB;">${(m.real_estate_weight_pct || 0).toFixed(1)}%</span></td>
           <td><span class="badge" style="background-color:#FFFBEB;color:#D97706;border:1px solid #FDE68A;">${(m.commodity_weight_pct || 0).toFixed(1)}%</span></td>
           <td><span class="badge" style="background-color:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">${(m.cash_weight_pct || 0).toFixed(1)}%</span></td>
+          <td class="font-monospace fw-bold text-primary bg-primary-subtle">${formatNum(m.expected_return, 2, "%")}</td>
+          <td class="font-monospace fw-bold text-dark bg-light">${formatNum(m.expected_vol, 2, "%")}</td>
+          <td class="font-monospace fw-bold text-success bg-light">${m.sharpe_ratio != null ? m.sharpe_ratio.toFixed(2) : "-"}</td>
           <td class="font-monospace">${formatNum(m.equity_weighted_div_yield, 2, "%")}</td>
           <td class="font-monospace">${formatNum(m.equity_weighted_pe, 1, "x")}</td>
           <td class="font-monospace">${formatNum(m.equity_weighted_pb, 1, "x")}</td>

@@ -555,7 +555,79 @@
     return curves;
   }
 
-  function calculatePortfolioAssetAndCurrencyMetrics(calculatedPortfolios) {
+  function calculatePortfolioRiskReturn(pWeights, tickers, correlations) {
+    if (!pWeights || !tickers || tickers.length === 0) {
+      return { expected_return: null, expected_vol: null, sharpe_ratio: null };
+    }
+
+    const activeEntries = Object.entries(pWeights).filter(([ric, w]) => {
+      return w != null && !isNaN(w) && Number(w) > 0 && tickers.some(t => t.ric === ric);
+    });
+    if (activeEntries.length === 0) {
+      return { expected_return: null, expected_vol: null, sharpe_ratio: null };
+    }
+
+    const totW = activeEntries.reduce((sum, [, w]) => sum + Number(w), 0);
+    if (totW <= 0) {
+      return { expected_return: null, expected_vol: null, sharpe_ratio: null };
+    }
+
+    const rics = activeEntries.map(([ric]) => ric);
+    const weightsNorm = activeEntries.map(([, w]) => Number(w) / totW);
+
+    const retVec = rics.map(r => {
+      const t = tickers.find(item => item.ric === r);
+      return (t && t.ret != null && !isNaN(t.ret)) ? Number(t.ret) : 0;
+    });
+
+    const volVec = rics.map(r => {
+      const t = tickers.find(item => item.ric === r);
+      return (t && t.vol != null && !isNaN(t.vol)) ? Number(t.vol) : 0;
+    });
+
+    // E[R] = sum(w_i * ret_i)
+    let expRet = 0;
+    for (let i = 0; i < rics.length; i++) {
+      expRet += weightsNorm[i] * retVec[i];
+    }
+
+    // Variance = w^T * Cov * w where Cov_ij = vol_i * vol_j * corr_ij
+    let varP = 0;
+    for (let i = 0; i < rics.length; i++) {
+      const r_i = rics[i];
+      const w_i = weightsNorm[i];
+      const vol_i = volVec[i];
+
+      for (let j = 0; j < rics.length; j++) {
+        const r_j = rics[j];
+        const w_j = weightsNorm[j];
+        const vol_j = volVec[j];
+
+        let corr_ij = 0;
+        if (i === j) {
+          corr_ij = 1.0;
+        } else if (correlations && correlations[r_i] && correlations[r_i][r_j] != null) {
+          corr_ij = Number(correlations[r_i][r_j]);
+        } else if (correlations && correlations[r_j] && correlations[r_j][r_i] != null) {
+          corr_ij = Number(correlations[r_j][r_i]);
+        }
+
+        const cov_ij = vol_i * vol_j * corr_ij;
+        varP += w_i * w_j * cov_ij;
+      }
+    }
+
+    const expVol = Math.sqrt(Math.max(0, varP));
+    const sharpe = (expVol > 0) ? (expRet / expVol) : null;
+
+    return {
+      expected_return: Number(expRet.toFixed(2)),
+      expected_vol: Number(expVol.toFixed(2)),
+      sharpe_ratio: sharpe != null ? Number(sharpe.toFixed(2)) : null
+    };
+  }
+
+  function calculatePortfolioAssetAndCurrencyMetrics(calculatedPortfolios, tickers = [], correlations = null, rawPortfoliosState = null) {
     const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"];
     const assetAllocation = [];
     const overallCurrency = [];
@@ -726,6 +798,9 @@
         const allBdMat = bdList.filter(h => h.maturity_years != null);
         const bdWeightedMat = allBdMat.length > 0 ? calcWeightedMean(allBdMat.map(h => h.maturity_years), allBdMat.map(h => h.portfolio_weight)) : null;
 
+        const rawWeights = rawPortfoliosState?.[pKey]?.weights || pRes.weights || {};
+        const rr = calculatePortfolioRiskReturn(rawWeights, tickers, correlations);
+
         summaryMetrics.push({
           portfolio_key: pKey,
           portfolio_name: pRes.name,
@@ -742,7 +817,10 @@
           equity_weighted_pb: eqWeightedPb != null ? Number(eqWeightedPb.toFixed(2)) : null,
           bond_weighted_ytm: bdWeightedYtm != null ? Number(bdWeightedYtm.toFixed(2)) : null,
           bond_weighted_mod_duration: bdWeightedDur != null ? Number(bdWeightedDur.toFixed(2)) : null,
-          bond_weighted_maturity_years: bdWeightedMat != null ? Number(bdWeightedMat.toFixed(2)) : null
+          bond_weighted_maturity_years: bdWeightedMat != null ? Number(bdWeightedMat.toFixed(2)) : null,
+          expected_return: rr.expected_return,
+          expected_vol: rr.expected_vol,
+          sharpe_ratio: rr.sharpe_ratio
         });
 
       } else {
@@ -762,7 +840,10 @@
           equity_weighted_pb: null,
           bond_weighted_ytm: null,
           bond_weighted_mod_duration: null,
-          bond_weighted_maturity_years: null
+          bond_weighted_maturity_years: null,
+          expected_return: null,
+          expected_vol: null,
+          sharpe_ratio: null
         });
       }
     }
@@ -1009,7 +1090,8 @@
     calculateLorenzCurves,
     calculatePortfolioAssetAndCurrencyMetrics,
     calculateAssetClassComparison,
-    calculateBondRegionIssuerBreakdown
+    calculateBondRegionIssuerBreakdown,
+    calculatePortfolioRiskReturn
   };
 
   if (typeof module !== 'undefined' && module.exports) {

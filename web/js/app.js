@@ -85,7 +85,7 @@
     const topHoldings = Analytics.calculateTopHoldings(calcPorts, 20);
     const concMetrics = Analytics.calculateConcentrationMetrics(calcPorts);
     const lorenzData = Analytics.calculateLorenzCurves(calcPorts);
-    const assetCurrMetrics = Analytics.calculatePortfolioAssetAndCurrencyMetrics(calcPorts);
+    const assetCurrMetrics = Analytics.calculatePortfolioAssetAndCurrencyMetrics(calcPorts, state.data.tickers, state.data.correlations, state.portfolios);
 
     // 2. Sidebar rendern
     renderSidebar();
@@ -323,6 +323,9 @@
       if (elem) elem.innerText = text;
     };
 
+    setVal('kpi-val-exp-ret', (pSum.is_active && pSum.expected_return != null) ? `${pSum.expected_return.toFixed(2)}%` : '-');
+    setVal('kpi-val-exp-vol', (pSum.is_active && pSum.expected_vol != null) ? `${pSum.expected_vol.toFixed(2)}%` : '-');
+    setVal('kpi-val-sharpe', (pSum.is_active && pSum.sharpe_ratio != null) ? `${pSum.sharpe_ratio.toFixed(2)}` : '-');
     setVal('kpi-val-equity', pSum.is_active ? `${pSum.equity_weight_pct.toFixed(1)}%` : '-');
     setVal('kpi-val-bonds', pSum.is_active ? `${pSum.bond_weight_pct.toFixed(1)}%` : '-');
     setVal('kpi-val-re', pSum.is_active ? `${(pSum.real_estate_weight_pct || 0).toFixed(1)}%` : '-');
