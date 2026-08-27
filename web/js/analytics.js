@@ -138,6 +138,9 @@
           maturity_dates: [],
           maturity_years_vals: [],
           maturity_years_weights: [],
+          redemption_dates: [],
+          issuer_types: [],
+          msci_mv_usd_vals: [],
           etf_breakdown_parts: []
         };
         aggregatedMap.set(holdingKey, item);
@@ -173,6 +176,15 @@
         item.maturity_years_vals.push(Number(h.maturity_years));
         item.maturity_years_weights.push(effWeight);
       }
+      if (h.redemption_dates) {
+        item.redemption_dates.push(h.redemption_dates);
+      }
+      if (h.issuer_type) {
+        item.issuer_types.push(h.issuer_type);
+      }
+      if (h.msci_mv_usd != null && !isNaN(h.msci_mv_usd)) {
+        item.msci_mv_usd_vals.push(Number(h.msci_mv_usd));
+      }
     }
 
     const result = [];
@@ -191,6 +203,9 @@
         mod_duration: calcWeightedMean(item.mod_dur_vals, item.mod_dur_weights),
         maturity_date: item.maturity_dates.length > 0 ? item.maturity_dates[0] : null,
         maturity_years: calcWeightedMean(item.maturity_years_vals, item.maturity_years_weights),
+        redemption_dates: item.redemption_dates.length > 0 ? item.redemption_dates[0] : null,
+        issuer_type: item.issuer_types.length > 0 ? item.issuer_types[0] : null,
+        msci_mv_usd: item.msci_mv_usd_vals.length > 0 ? item.msci_mv_usd_vals[0] : null,
         n_etfs: item.etf_breakdown_parts.length,
         etf_breakdown: item.etf_breakdown_parts.join(" + ")
       });

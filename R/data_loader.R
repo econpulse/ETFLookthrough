@@ -1,7 +1,8 @@
 # ==============================================================================
 # R/data_loader.R
 # Modul zum Laden, Validieren und Bereinigen der ETF-Daten aus Data.xlsx
-# Unterstützt Multi-Asset (Aktien & Bonds) sowie Kennzahlen & Währungen
+# Unterstuetzt Multi-Asset (Aktien, Bonds, Real Estate, Rohstoffe, Cash)
+# Zwei-Tabellen-Architektur: Holdings (Spalten 1:4) + Kennzahlen (Spalten 5:14)
 # ==============================================================================
 
 library(readxl)
@@ -23,10 +24,25 @@ GICS_11_SECTORS <- c(
   "Real Estate"
 )
 
-# Standardfarben für die 11 GICS-Sektoren
+# Mapping fuer GICS-Sektoren von UPPERCASE zu Title Case
+GICS_SECTOR_MAP <- c(
+  "ENERGY"                 = "Energy",
+  "MATERIALS"              = "Materials",
+  "INDUSTRIALS"            = "Industrials",
+  "CONSUMER DISCRETIONARY" = "Consumer Discretionary",
+  "CONSUMER STAPLES"       = "Consumer Staples",
+  "HEALTH CARE"            = "Health Care",
+  "FINANCIALS"             = "Financials",
+  "INFORMATION TECHNOLOGY" = "Information Technology",
+  "COMMUNICATION SERVICES" = "Communication Services",
+  "UTILITIES"              = "Utilities",
+  "REAL ESTATE"            = "Real Estate"
+)
+
+# Standardfarben fuer die 11 GICS-Sektoren
 GICS_SECTOR_COLORS <- c(
   "Energy"                 = "#E6550D", # Warmes Orange/Rot
-  "Materials"              = "#74C476", # Frischgrün
+  "Materials"              = "#74C476", # Frischgruen
   "Industrials"            = "#3182BD", # Stahlblau
   "Consumer Discretionary" = "#FD8D3C", # Helles Orange
   "Consumer Staples"       = "#9ECAE1", # Helles Blau
@@ -34,18 +50,61 @@ GICS_SECTOR_COLORS <- c(
   "Financials"             = "#2B8CBE", # Dunkelcyan
   "Information Technology" = "#6BAED6", # Tech-Blau
   "Communication Services" = "#BCBD22", # Limettengelb
-  "Utilities"              = "#17BECF", # Türkis
+  "Utilities"              = "#17BECF", # Tuerkis
   "Real Estate"            = "#8C564B"  # Braun / Terrakotta
 )
 
-# Standardfarben für Assetklassen
+# Standardfarben fuer Assetklassen
 ASSET_TYPE_COLORS <- c(
   "Aktien"      = "#1E40AF", # LUKB Blau
   "Bonds"       = "#0D9488", # Teal / Petrol
-  "Real Estate" = "#8C564B"  # Braun / Terrakotta
+  "Real Estate" = "#8C564B", # Braun / Terrakotta
+  "Rohstoffe"   = "#D97706", # Bernstein / Goldbraun
+  "Cash"        = "#16A34A"  # Gruen
 )
 
-# Währungsfarben für konsistente Visualisierung
+# Mapping von Refinitiv/Datastream Waehrungskuerzeln zu 3-Buchstaben-ISO-Codes
+DATASTREAM_CURRENCY_MAP <- c(
+  "SF"      = "CHF",
+  "E"       = "EUR",
+  "U$"      = "USD",
+  "\u00A3"  = "GBP", # Pound Sign
+  "Y"       = "JPY",
+  "A$"      = "AUD",
+  "C$"      = "CAD",
+  "K$"      = "HKD",
+  "S$"      = "SGD",
+  "Z$"      = "NZD",
+  "M$"      = "MYR",
+  "C"       = "BRL",
+  "CE"      = "CLP",
+  "CH"      = "CNY",
+  "CK"      = "CZK",
+  "CP"      = "COP",
+  "E\u00A3" = "EGP", # Egyptian Pound
+  "ED"      = "AED",
+  "HF"      = "HUF",
+  "I\u00A3" = "ILS", # Israeli Shekel
+  "IR"      = "INR",
+  "KD"      = "KWD",
+  "KW"      = "KRW",
+  "MP"      = "MXN",
+  "NK"      = "NOK",
+  "PP"      = "PHP",
+  "PS"      = "PEN",
+  "PZ"      = "PLN",
+  "Q"       = "QAR",
+  "R"       = "ZAR",
+  "RI"      = "IDR",
+  "RL"      = "RON",
+  "SK"      = "SEK",
+  "SR"      = "SAR",
+  "TB"      = "THB",
+  "TL"      = "TRY",
+  "TW"      = "TWD"
+)
+
+# Waehrungsfarben fuer konsistente Visualisierung
 CURRENCY_COLORS <- c(
   "CHF" = "#1E40AF", # Schweizer Franken - Tiefblau
   "USD" = "#0D9488", # US-Dollar - Petrol
@@ -53,67 +112,101 @@ CURRENCY_COLORS <- c(
   "GBP" = "#7C3AED", # Britisches Pfund - Violett
   "JPY" = "#E11D48", # Japanischer Yen - Rot
   "CAD" = "#D97706", # Kanadischer Dollar - Bernstein
-  "AUD" = "#059669", # Australischer Dollar - Grün
+  "AUD" = "#059669", # Australischer Dollar - Gruen
   "CNY" = "#DC2626", # Chinesischer Yuan - Rot
   "INR" = "#EA580C", # Indische Rupie - Orange
   "HKD" = "#DB2777", # Hongkong-Dollar - Pink
   "SGD" = "#4F46E5", # Singapur-Dollar - Indigo
-  "KRW" = "#0891B2", # Südkoreanischer Won - Cyan
+  "KRW" = "#0891B2", # Suedkoreanischer Won - Cyan
   "TWD" = "#65A30D", # Taiwan-Dollar - Limette
-  "BRL" = "#16A34A", # Brasilianischer Real - Grün
-  "ZAR" = "#B45309", # Südafrikanischer Rand - Braun
-  "SAR" = "#047857", # Saudi-Riyal - Dunkelgrün
+  "BRL" = "#16A34A", # Brasilianischer Real - Gruen
+  "ZAR" = "#B45309", # Suedafrikanischer Rand - Braun
+  "SAR" = "#047857", # Saudi-Riyal - Dunkelgruen
   "MXN" = "#C026D3", # Mexikanischer Peso - Magenta
   "NA"  = "#9CA3AF"  # Nicht zugewiesen / Unbekannt - Grau
 )
 
-#' Hilfsfunktion zur strikten Bereinigung von Währungscodes (nur 3-Buchstaben-Codes)
-#' Alle anderen Inhalte (insbes. "Access Denied", Fehlermeldungen, Zahlen, NAs) werden zu NA_character_
+#' Hilfsfunktion zur Bereinigung von Waehrungscodes (Datastream -> 3-Buchstaben-ISO)
 clean_currency_code <- function(curr) {
   if (is.null(curr)) return(NA_character_)
   curr <- trimws(as.character(curr))
   
-  # Standardisiere bekannte Ausnahmen wie GBp -> GBP, ZAc -> ZAR
-  curr <- ifelse(curr == "GBp", "GBP", curr)
-  curr <- ifelse(curr == "ZAc", "ZAR", curr)
+  # 1. Pruefe Datastream-Mapping
+  mapped <- DATASTREAM_CURRENCY_MAP[curr]
+  res <- ifelse(!is.na(mapped), mapped, curr)
   
-  # In Grossbuchstaben konvertieren
-  curr <- toupper(curr)
+  # 2. Bekannte Spezialfaelle
+  res <- ifelse(res == "GBp", "GBP", res)
+  res <- ifelse(res == "ZAc", "ZAR", res)
+  res <- toupper(res)
   
-  # Strikt nur exakt 3 Buchstaben (A-Z) akzeptieren
-  is_valid <- grepl("^[A-Z]{3}$", curr) & !(curr %in% c("NAN", "NIL"))
-  
-  curr[!is_valid | is.na(curr)] <- NA_character_
-  curr
+  # 3. Strikt nur 3 Buchstaben (A-Z)
+  is_valid <- grepl("^[A-Z]{3}$", res) & !(res %in% c("NAN", "NIL", "N/A", "#N/A", "NULL", "NONE"))
+  res[!is_valid | is.na(res)] <- NA_character_
+  res
 }
 
-#' Hilfsfunktion zur Bereinigung von Maturity Dates (Excel-Seriennummern & Strings)
-clean_maturity_date <- function(val) {
-  if (is.null(val)) return(NA_character_)
-  val_str <- trimws(as.character(val))
-  is_invalid <- is.na(val_str) | grepl("Unable|invalid|#N/A|NULL|^$", val_str, ignore.case = TRUE)
+#' Hilfsfunktion zur Bereinigung von Sektornamen (UPPERCASE -> Title Case)
+clean_sector_name <- function(sec) {
+  if (is.null(sec)) return(NA_character_)
+  sec_clean <- trimws(as.character(sec))
+  sec_upper <- toupper(sec_clean)
   
-  result <- rep(NA_character_, length(val_str))
+  mapped <- GICS_SECTOR_MAP[sec_upper]
+  res <- ifelse(!is.na(mapped), mapped, tools::toTitleCase(tolower(sec_clean)))
+  res[is.na(sec_clean) | sec_clean %in% c("#N/A", "NULL", "", "NA")] <- NA_character_
+  res
+}
+
+#' Hilfsfunktion zur Bereinigung von Redemption Dates (Format: ddmmyyyy -> YYYY-MM-DD)
+parse_ddmmyyyy <- function(val_str) {
+  if (is.null(val_str)) return(NA_character_)
+  val_str <- trimws(as.character(val_str))
+  is_invalid <- is.na(val_str) | val_str %in% c("#N/A", "NULL", "", "NA") | grepl("invalid|unable", val_str, ignore.case = TRUE)
   
-  # Versuche als Zahl (Excel Date Serial Number)
-  num_vals <- suppressWarnings(as.numeric(val_str))
-  valid_num <- !is_invalid & !is.na(num_vals) & num_vals > 10000 & num_vals < 100000
-  if (any(valid_num)) {
-    dates <- as.Date(num_vals[valid_num], origin = "1899-12-30")
-    result[valid_num] <- format(dates, "%Y-%m-%d")
-  }
+  res <- rep(NA_character_, length(val_str))
   
-  # Versuche als Datumstext (YYYY-MM-DD oder DD.MM.YYYY)
-  text_candidates <- !is_invalid & is.na(result)
-  if (any(text_candidates)) {
-    parsed_dates <- suppressWarnings(as.Date(val_str[text_candidates]))
-    ok <- !is.na(parsed_dates)
-    if (any(ok)) {
-      result[text_candidates][ok] <- format(parsed_dates[ok], "%Y-%m-%d")
+  for (i in which(!is_invalid)) {
+    s <- val_str[i]
+    n <- nchar(s)
+    parsed <- NA_character_
+    
+    # 8-stellig (oder laenger mit Option/Call-Suffix): DDMMYYYY
+    if (n >= 8) {
+      y <- substr(s, 5, 8)
+      if (grepl("^(19|20|21)\\d{2}$", y)) {
+        d <- substr(s, 1, 2)
+        m <- substr(s, 3, 4)
+        cand <- paste0(y, "-", m, "-", d)
+        dt <- suppressWarnings(as.Date(cand, format = "%Y-%m-%d"))
+        if (!is.na(dt)) parsed <- format(dt, "%Y-%m-%d")
+      }
     }
+    
+    # 7-stellig (oder 9-stellig): DMMYYYY (einstelliger Tag)
+    if (is.na(parsed) && n >= 7) {
+      y <- substr(s, 4, 7)
+      if (grepl("^(19|20|21)\\d{2}$", y)) {
+        d <- paste0("0", substr(s, 1, 1))
+        m <- substr(s, 2, 3)
+        cand <- paste0(y, "-", m, "-", d)
+        dt <- suppressWarnings(as.Date(cand, format = "%Y-%m-%d"))
+        if (!is.na(dt)) parsed <- format(dt, "%Y-%m-%d")
+      }
+    }
+    
+    # Fallback: Excel Date Serial Number
+    if (is.na(parsed)) {
+      num_v <- suppressWarnings(as.numeric(s))
+      if (!is.na(num_v) && num_v > 10000 && num_v < 100000) {
+        dt <- suppressWarnings(as.Date(num_v, origin = "1899-12-30"))
+        if (!is.na(dt)) parsed <- format(dt, "%Y-%m-%d")
+      }
+    }
+    
+    res[i] <- parsed
   }
-  
-  result
+  res
 }
 
 #' Berechnet Restlaufzeit in Jahren ausgehend vom aktuellen Datum
@@ -124,8 +217,7 @@ calc_maturity_years <- function(mat_dates, ref_date = Sys.Date()) {
   ifelse(!is.na(years) & years > 0, round(years, 2), NA_real_)
 }
 
-#' Berechnet den gewichteten harmonischen Mittelwert (Standard nach MSCI / Morningstar für Multiples wie KGV & KBV)
-#' Verhindert Verzerrungen durch Ausreisser und extrem kleine Nenner/Buchwerte
+#' Berechnet den gewichteten harmonischen Mittelwert (MSCI / Morningstar Standard)
 calc_weighted_harmonic <- function(x, w, min_val = 0.01, max_val = Inf) {
   if (is.null(x) || is.null(w) || length(x) == 0 || length(w) == 0) return(NA_real_)
   valid <- !is.na(x) & x > 0 & is.finite(x) & !is.na(w) & w > 0
@@ -139,7 +231,50 @@ calc_weighted_harmonic <- function(x, w, min_val = 0.01, max_val = Inf) {
   sum_w / sum(w_v / x_v)
 }
 
-#' Lädt und bereinigt die ETF-Daten aus Data.xlsx (Multi-Asset fähig: Aktien, Bonds, Real Estate)
+#' Extrahiert Tabelle 1 (Holdings, Spalten 1:4) und Tabelle 2 (Attribute, Spalten 5:14) aus einem Sheet
+extract_two_tables <- function(file_path, sheet_name) {
+  raw <- read_excel(file_path, sheet = sheet_name, col_names = FALSE)
+  hdr_idx <- which(raw[[2]] == "Holding RIC" | raw[[1]] == "Holding RIC")[1]
+  if (is.na(hdr_idx) || nrow(raw) <= hdr_idx) return(list(t1 = tibble(), t2 = tibble()))
+  
+  data_rows <- raw[(hdr_idx + 1):nrow(raw), , drop = FALSE]
+  
+  # Tabelle 1: Holdings
+  t1 <- data_rows[, 1:4, drop = FALSE]
+  colnames(t1) <- c("etf_ric", "holding_ric", "holding_name", "weight_raw")
+  t1 <- t1 %>%
+    mutate(
+      etf_ric = trimws(as.character(etf_ric)),
+      holding_ric = trimws(as.character(holding_ric)),
+      holding_name = trimws(as.character(holding_name)),
+      weight_raw = suppressWarnings(as.numeric(weight_raw))
+    ) %>%
+    filter(!is.na(etf_ric) & etf_ric != "" & !is.na(holding_ric) & holding_ric != "")
+  
+  # Tabelle 2: Instrument-Attribute
+  t2 <- data_rows[, 5:min(14, ncol(data_rows)), drop = FALSE]
+  c_names <- c("type_ric", "raw_sector", "div_yield", "pb", "pe", "ytm", "msci_mv_usd", "raw_redemption_dates", "raw_currency", "issuer_type")
+  colnames(t2) <- c_names[1:ncol(t2)]
+  
+  t2 <- t2 %>%
+    mutate(
+      type_ric = trimws(as.character(type_ric)),
+      raw_sector = if ("raw_sector" %in% names(.)) trimws(as.character(raw_sector)) else NA_character_,
+      div_yield = if ("div_yield" %in% names(.)) suppressWarnings(as.numeric(div_yield)) else NA_real_,
+      pb = if ("pb" %in% names(.)) suppressWarnings(as.numeric(pb)) else NA_real_,
+      pe = if ("pe" %in% names(.)) suppressWarnings(as.numeric(pe)) else NA_real_,
+      ytm = if ("ytm" %in% names(.)) suppressWarnings(as.numeric(ytm)) else NA_real_,
+      msci_mv_usd = if ("msci_mv_usd" %in% names(.)) suppressWarnings(as.numeric(msci_mv_usd)) else NA_real_,
+      raw_redemption_dates = if ("raw_redemption_dates" %in% names(.)) trimws(as.character(raw_redemption_dates)) else NA_character_,
+      raw_currency = if ("raw_currency" %in% names(.)) trimws(as.character(raw_currency)) else NA_character_,
+      issuer_type = if ("issuer_type" %in% names(.)) trimws(as.character(issuer_type)) else NA_character_
+    ) %>%
+    filter(!is.na(type_ric) & type_ric != "")
+  
+  list(t1 = t1, t2 = t2)
+}
+
+#' Laedt und bereinigt die ETF-Daten aus Data.xlsx (Multi-Asset faehig)
 #' 
 #' @param file_path Pfad zur Excel-Datei (Standard: "Data.xlsx")
 #' @return Eine Liste mit 'ticker_df', 'data_clean', 'etf_summary', 'raw_row_count', 'clean_row_count', etc.
@@ -151,7 +286,6 @@ load_etf_data <- function(file_path = "Data.xlsx") {
   # 1. Metadaten aus Sheet 'ticker' laden
   ticker_raw <- read_excel(file_path, sheet = "ticker")
   
-  # Bereinige Ticker-Spalten inkl. asset_type (auch weiter unten liegende Ticker erfassen)
   ticker_df <- ticker_raw %>%
     rename_with(tolower) %>%
     filter(!is.na(ric) & trimws(as.character(ric)) != "") %>%
@@ -168,88 +302,59 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       }
     )
   
-  # 2. Holdings aus Sheet 'data' und optional 'Manuell' laden
+  # 2. Tabellen aus 'data' und 'Manuell' extrahieren
   sheets_available <- excel_sheets(file_path)
-  data_raw <- read_excel(file_path, sheet = "data", skip = 1)
+  data_tables <- extract_two_tables(file_path, "data")
   
-  standardize_cols <- function(df) {
-    if (ncol(df) >= 1) colnames(df)[1] <- "etf_ric"
-    if (ncol(df) >= 2) colnames(df)[2] <- "raw_holding_ric"
-    if (ncol(df) >= 3) colnames(df)[3] <- "raw_holding_name"
-    if (ncol(df) >= 4) colnames(df)[4] <- "raw_weight"
-    if (ncol(df) >= 5) colnames(df)[5] <- "raw_sector"
-    if (ncol(df) >= 6) colnames(df)[6] <- "raw_div_yield"
-    if (ncol(df) >= 7) colnames(df)[7] <- "raw_pb"
-    if (ncol(df) >= 8) colnames(df)[8] <- "raw_pe"
-    if (ncol(df) >= 9) colnames(df)[9] <- "raw_ytm"
-    if (ncol(df) >= 10) colnames(df)[10] <- "raw_mod_duration"
-    if (ncol(df) >= 11) colnames(df)[11] <- "raw_maturity_date"
-    if (ncol(df) >= 12) colnames(df)[12] <- "raw_ccy"
-    if (ncol(df) >= 13) colnames(df)[13] <- "raw_currency_code"
-    df
-  }
-  
-  data_raw <- standardize_cols(data_raw)
+  t1_list <- list(data_tables$t1)
+  t2_list <- list(data_tables$t2)
   
   if ("Manuell" %in% sheets_available) {
-    manuell_raw <- read_excel(file_path, sheet = "Manuell")
-    manuell_raw <- standardize_cols(manuell_raw)
-    data_raw <- bind_rows(data_raw, manuell_raw)
+    man_tables <- extract_two_tables(file_path, "Manuell")
+    t1_list <- append(t1_list, list(man_tables$t1))
+    t2_list <- append(t2_list, list(man_tables$t2))
   }
   
-  raw_row_count <- nrow(data_raw)
+  t1_combined <- bind_rows(t1_list)
+  t2_combined <- bind_rows(t2_list) %>% distinct(type_ric, .keep_all = TRUE)
   
-  # 3. Zweistufige Währungsbereinigung:
-  # Wenn Ccy (Spalte 12) nicht valide ist (z.B. "Access Denied"), Fallback auf Currency Code (Spalte 13)
-  ccy1 <- if ("raw_ccy" %in% names(data_raw)) clean_currency_code(data_raw$raw_ccy) else rep(NA_character_, nrow(data_raw))
-  ccy2 <- if ("raw_currency_code" %in% names(data_raw)) clean_currency_code(data_raw$raw_currency_code) else rep(NA_character_, nrow(data_raw))
-  currency_combined <- ifelse(!is.na(ccy1), ccy1, ccy2)
+  raw_row_count <- nrow(t1_combined)
   
-  # 4. Vorbereiten und Verknüpfen mit Metadaten
-  data_prep <- data_raw %>%
-    mutate(
-      etf_ric = trimws(as.character(etf_ric)),
-      holding_ric = trimws(as.character(raw_holding_ric)),
-      holding_name = trimws(as.character(raw_holding_name)),
-      raw_sector = if ("raw_sector" %in% names(.)) trimws(as.character(raw_sector)) else NA_character_,
-      weight_raw = suppressWarnings(as.numeric(raw_weight)),
-      div_yield = if ("raw_div_yield" %in% names(.)) suppressWarnings(as.numeric(raw_div_yield)) else NA_real_,
-      pb = if ("raw_pb" %in% names(.)) suppressWarnings(as.numeric(raw_pb)) else NA_real_,
-      pe = if ("raw_pe" %in% names(.)) suppressWarnings(as.numeric(raw_pe)) else NA_real_,
-      ytm = if ("raw_ytm" %in% names(.)) suppressWarnings(as.numeric(raw_ytm)) else NA_real_,
-      mod_duration = if ("raw_mod_duration" %in% names(.)) suppressWarnings(as.numeric(raw_mod_duration)) else NA_real_,
-      maturity_date = if ("raw_maturity_date" %in% names(.)) clean_maturity_date(raw_maturity_date) else NA_character_,
-      currency = currency_combined
-    ) %>%
-    mutate(
-      maturity_years = calc_maturity_years(maturity_date)
-    ) %>%
+  # 3. Verknuepfung: Tabelle 1 (Holding RIC) <-> Tabelle 2 (Type)
+  joined_data <- t1_combined %>%
+    left_join(t2_combined, by = c("holding_ric" = "type_ric")) %>%
     left_join(
       ticker_df %>% select(ric, etf_label = label, etf_region = region, asset_type),
       by = c("etf_ric" = "ric")
     ) %>%
     mutate(
       asset_type = ifelse(is.na(asset_type), "Aktien", asset_type),
-      etf_label = ifelse(is.na(etf_label), etf_ric, etf_label)
+      etf_label = ifelse(is.na(etf_label), etf_ric, etf_label),
+      currency = clean_currency_code(raw_currency),
+      gics_sector = clean_sector_name(raw_sector),
+      redemption_dates = ifelse(raw_redemption_dates %in% c("#N/A", "NULL", "", "NA"), NA_character_, raw_redemption_dates),
+      maturity_date = parse_ddmmyyyy(raw_redemption_dates),
+      maturity_years = calc_maturity_years(maturity_date),
+      issuer_type = ifelse(issuer_type %in% c("#N/A", "NULL", "", "NA"), NA_character_, issuer_type),
+      mod_duration = NA_real_
     )
   
-  # 5. Differenzierte Bereinigung nach Assetklasse
-  clean_akten <- data_prep %>%
+  # 4. Differenzierte Bereinigung nach Assetklasse
+  clean_akten <- joined_data %>%
     filter(
       asset_type == "Aktien",
       !is.na(holding_ric) & holding_ric != "" & holding_ric != "NULL",
-      !is.na(raw_sector) & raw_sector %in% GICS_11_SECTORS,
+      !grepl("invalid|Unable|CASH|FEES|OTHER ASSETS|OTHER LIAB|FOREX", holding_name, ignore.case = TRUE),
       !is.na(weight_raw) & weight_raw > 0
     ) %>%
     mutate(
-      gics_sector = raw_sector,
       ytm = NA_real_,
       mod_duration = NA_real_,
       maturity_date = NA_character_,
       maturity_years = NA_real_
     )
   
-  clean_bonds <- data_prep %>%
+  clean_bonds <- joined_data %>%
     filter(
       asset_type == "Bonds",
       !is.na(holding_ric) & holding_ric != "" & holding_ric != "NULL",
@@ -263,7 +368,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       pb = NA_real_
     )
   
-  clean_real_estate <- data_prep %>%
+  clean_real_estate <- joined_data %>%
     filter(
       asset_type == "Real Estate",
       !is.na(holding_ric) & holding_ric != "" & holding_ric != "NULL",
@@ -278,8 +383,8 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       maturity_date = NA_character_,
       maturity_years = NA_real_
     )
-
-  clean_cash <- data_prep %>%
+  
+  clean_cash <- joined_data %>%
     filter(
       asset_type == "Cash",
       !is.na(holding_ric) & holding_ric != "" & holding_ric != "NULL",
@@ -296,8 +401,8 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       maturity_years = NA_real_,
       currency = ifelse(is.na(currency) | currency == "", "CHF", currency)
     )
-
-  clean_rohstoffe <- data_prep %>%
+  
+  clean_rohstoffe <- joined_data %>%
     filter(
       asset_type == "Rohstoffe",
       !is.na(holding_ric) & holding_ric != "" & holding_ric != "NULL",
@@ -312,15 +417,16 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       mod_duration = NA_real_,
       maturity_date = NA_character_,
       maturity_years = NA_real_,
-      currency = ifelse(is.na(currency) | currency == "", "USD", currency)
+      currency = ifelse(is.na(currency) | currency == "", ifelse(holding_ric == "CMD_GOLD", "CHF", "USD"), currency)
     )
   
-  # Kombinierter bereinigter Datensatz
+  # 5. Gesamtdatensatz zusammenfuehren
   data_clean <- bind_rows(clean_akten, clean_bonds, clean_real_estate, clean_cash, clean_rohstoffe) %>%
     select(
       etf_ric, etf_label, etf_region, asset_type,
       holding_ric, holding_name, gics_sector,
-      weight_raw, div_yield, pb, pe, ytm, mod_duration, maturity_date, maturity_years, currency
+      weight_raw, div_yield, pb, pe, ytm, mod_duration, maturity_date, maturity_years, currency,
+      redemption_dates, issuer_type, msci_mv_usd
     )
   
   # Normalisierte Gewichte berechnen (auf 100% innerhalb jedes ETF skaliert)
@@ -343,7 +449,6 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       avg_pe = calc_weighted_harmonic(pe, weight_raw, min_val = 1.0),
       avg_pb = calc_weighted_harmonic(pb, weight_raw, min_val = 0.1),
       avg_ytm = if (any(!is.na(ytm))) weighted.mean(ytm, weight_raw, na.rm = TRUE) else NA_real_,
-      avg_mod_duration = if (any(!is.na(mod_duration))) weighted.mean(mod_duration, weight_raw, na.rm = TRUE) else NA_real_,
       avg_maturity_years = if (any(!is.na(maturity_years))) weighted.mean(maturity_years, weight_raw, na.rm = TRUE) else NA_real_,
       top_holding = holding_name[which.max(weight_raw)],
       top_holding_weight = max(weight_raw),

@@ -59,6 +59,9 @@ calculate_single_portfolio_lookthrough <- function(etf_weights, clean_data, use_
       mod_duration = numeric(),
       maturity_date = character(),
       maturity_years = numeric(),
+      redemption_dates = character(),
+      issuer_type = character(),
+      msci_mv_usd = numeric(),
       n_etfs = integer(),
       etf_breakdown = character()
     ))
@@ -89,6 +92,9 @@ calculate_single_portfolio_lookthrough <- function(etf_weights, clean_data, use_
       mod_duration = numeric(),
       maturity_date = character(),
       maturity_years = numeric(),
+      redemption_dates = character(),
+      issuer_type = character(),
+      msci_mv_usd = numeric(),
       n_etfs = integer(),
       etf_breakdown = character()
     ))
@@ -116,6 +122,9 @@ calculate_single_portfolio_lookthrough <- function(etf_weights, clean_data, use_
       mod_duration = if (any(!is.na(mod_duration))) weighted.mean(mod_duration, holding_eff_weight, na.rm = TRUE) else NA_real_,
       maturity_date = if (any(!is.na(maturity_date))) maturity_date[which(!is.na(maturity_date))[1]] else NA_character_,
       maturity_years = if (any(!is.na(maturity_years))) weighted.mean(maturity_years, holding_eff_weight, na.rm = TRUE) else NA_real_,
+      redemption_dates = if ("redemption_dates" %in% names(relevant_holdings) && any(!is.na(redemption_dates))) redemption_dates[which(!is.na(redemption_dates))[1]] else NA_character_,
+      issuer_type = if ("issuer_type" %in% names(relevant_holdings) && any(!is.na(issuer_type))) issuer_type[which(!is.na(issuer_type))[1]] else NA_character_,
+      msci_mv_usd = if ("msci_mv_usd" %in% names(relevant_holdings) && any(!is.na(msci_mv_usd))) msci_mv_usd[which(!is.na(msci_mv_usd))[1]] else NA_real_,
       n_etfs = dplyr::n(),
       etf_breakdown = paste(eff_label, collapse = " + "),
       .groups = "drop"
