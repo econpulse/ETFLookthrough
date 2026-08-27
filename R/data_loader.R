@@ -268,7 +268,7 @@ extract_two_tables <- function(file_path, sheet_name) {
   # Tabelle 2: Instrument-Attribute (Spalten 6:15)
   if (ncol(data_rows) >= 6) {
     t2 <- data_rows[, 6:min(15, ncol(data_rows)), drop = FALSE]
-    c2_names <- c("type_ric", "sector_nxt_dy_legacy", "div_yield", "pb", "pe", "ytm", "msci_mv_usd", "raw_redemption_dates", "raw_currency", "issuer_type")
+    c2_names <- c("type_ric", "sector_nxt_dy_legacy", "div_yield", "pb", "pe", "ytm", "mod_duration", "raw_redemption_dates", "raw_currency", "issuer_type")
     colnames(t2) <- c2_names[1:ncol(t2)]
     
     t2 <- t2 %>%
@@ -279,7 +279,7 @@ extract_two_tables <- function(file_path, sheet_name) {
         pb = if ("pb" %in% names(.)) suppressWarnings(as.numeric(pb)) else NA_real_,
         pe = if ("pe" %in% names(.)) suppressWarnings(as.numeric(pe)) else NA_real_,
         ytm = if ("ytm" %in% names(.)) suppressWarnings(as.numeric(ytm)) else NA_real_,
-        msci_mv_usd = if ("msci_mv_usd" %in% names(.)) suppressWarnings(as.numeric(msci_mv_usd)) else NA_real_,
+        mod_duration = if ("mod_duration" %in% names(.)) suppressWarnings(as.numeric(mod_duration)) else NA_real_,
         raw_redemption_dates = if ("raw_redemption_dates" %in% names(.)) trimws(as.character(raw_redemption_dates)) else NA_character_,
         raw_currency = if ("raw_currency" %in% names(.)) trimws(as.character(raw_currency)) else NA_character_,
         issuer_type = if ("issuer_type" %in% names(.)) trimws(as.character(issuer_type)) else NA_character_
@@ -354,7 +354,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       maturity_date = parse_ddmmyyyy(raw_redemption_dates),
       maturity_years = calc_maturity_years(maturity_date),
       issuer_type = ifelse(issuer_type %in% c("#N/A", "NULL", "", "NA"), NA_character_, issuer_type),
-      mod_duration = NA_real_
+      mod_duration = suppressWarnings(as.numeric(mod_duration))
     )
   
   # 4. Differenzierte Bereinigung nach Assetklasse
@@ -444,7 +444,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       etf_ric, etf_label, etf_region, asset_type,
       holding_ric, holding_name, gics_sector,
       weight_raw, div_yield, pb, pe, ytm, mod_duration, maturity_date, maturity_years, currency,
-      redemption_dates, issuer_type, msci_mv_usd
+      redemption_dates, issuer_type
     )
   
   # Normalisierte Gewichte berechnen (auf 100% innerhalb jedes ETF skaliert)
@@ -467,6 +467,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       avg_pe = calc_weighted_harmonic(pe, weight_raw, min_val = 1.0),
       avg_pb = calc_weighted_harmonic(pb, weight_raw, min_val = 0.1),
       avg_ytm = if (any(!is.na(ytm))) weighted.mean(ytm, weight_raw, na.rm = TRUE) else NA_real_,
+      avg_mod_duration = if (any(!is.na(mod_duration))) weighted.mean(mod_duration, weight_raw, na.rm = TRUE) else NA_real_,
       avg_maturity_years = if (any(!is.na(maturity_years))) weighted.mean(maturity_years, weight_raw, na.rm = TRUE) else NA_real_,
       top_holding = holding_name[which.max(weight_raw)],
       top_holding_weight = max(weight_raw),
