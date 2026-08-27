@@ -1,0 +1,175 @@
+/* ==============================================================================
+   web/css/custom.css
+   Corporate LUKB Theme & Dashboard Styles
+   ============================================================================== */
+
+:root {
+  --lukb-primary: #1E40AF;
+  --lukb-primary-hover: #1D4ED8;
+  --lukb-secondary: #475569;
+  --lukb-teal: #0D9488;
+  --lukb-danger: #E11D48;
+  --lukb-warning: #D97706;
+  --lukb-bg: #F8FAFC;
+  --lukb-card-border: #E2E8F0;
+  --lukb-text: #0F172A;
+  --lukb-muted: #64748B;
+}
+
+body {
+  background-color: var(--lukb-bg);
+  color: var(--lukb-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.9rem;
+}
+
+/* Navbar */
+.navbar {
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--lukb-card-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.navbar-brand {
+  color: var(--lukb-primary) !important;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.nav-pills .nav-link {
+  color: var(--lukb-secondary);
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 6px 14px;
+  transition: all 0.15s ease;
+}
+
+.nav-pills .nav-link:hover {
+  color: var(--lukb-primary);
+  background-color: #EFF6FF;
+}
+
+.nav-pills .nav-link.active {
+  background-color: var(--lukb-primary);
+  color: #FFFFFF !important;
+  font-weight: 600;
+}
+
+/* Sidebar */
+.sidebar-wrapper {
+  background: #FFFFFF;
+  border-right: 1px solid var(--lukb-card-border);
+  min-height: calc(100vh - 58px);
+}
+
+.sidebar-etf-row {
+  background: #FFFFFF;
+  border: 1px solid var(--lukb-card-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  transition: all 0.15s ease;
+}
+
+.sidebar-etf-row:hover {
+  border-color: #CBD5E1;
+  background-color: #F8FAFC;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+/* Cards & Value Boxes */
+.card {
+  border: 1px solid var(--lukb-card-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1rem;
+  background: #FFFFFF;
+}
+
+.card-header {
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--lukb-card-border);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.75rem 1rem;
+}
+
+.value-box {
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid var(--lukb-card-border);
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.value-box-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.value-box-content h6 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--lukb-muted);
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.value-box-content .value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--lukb-text);
+  line-height: 1.1;
+}
+
+.value-box-content .subtext {
+  font-size: 0.72rem;
+  color: var(--lukb-muted);
+}
+
+/* Stepper Buttons */
+.stepper-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+/* Table styling */
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.8rem;
+  background-color: #F8FAFC;
+}
+
+.font-monospace {
+  font-family: 'Fira Code', Consolas, monospace !important;
+}
+
+/* Badges */
+.badge-pill-weight {
+  font-family: 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+}

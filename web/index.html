@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ETF Look-Through Analytics | LUKB</title>
+  
+  <!-- Google Fonts & Bootstrap 5 & Bootstrap Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- Plotly.js CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/custom.css">
+</head>
+<body>
+
+  <!-- ========================================================================= -->
+  <!-- NAVBAR -->
+  <!-- ========================================================================= -->
+  <nav class="navbar navbar-expand-lg navbar-light sticky-top py-2">
+    <div class="container-fluid px-3">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+        <i class="bi bi-pie-chart-fill fs-4 text-primary"></i>
+        <span>ETF Look-Through Analytics</span>
+        <span class="badge bg-primary-subtle text-primary border ms-2 small" style="font-size: 0.7rem;">Standalone HTML/JS</span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <ul class="nav nav-pills ms-auto gap-1" id="mainNav">
+          <li class="nav-item">
+            <a class="nav-link active" href="#" data-tab="tab_dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_allocation"><i class="bi bi-globe me-1"></i> Allokation & Währungen</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_sectors"><i class="bi bi-diagram-3 me-1"></i> Sektor-Mix</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_holdings"><i class="bi bi-trophy me-1"></i> Top Holdings</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_concentration"><i class="bi bi-graph-up me-1"></i> Konzentration</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_config"><i class="bi bi-gear me-1"></i> Portfolio-Editor</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_universe"><i class="bi bi-database me-1"></i> ETF-Universum</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div id="app-loading-error" class="alert alert-danger m-3 d-none"></div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN LAYOUT (SIDEBAR + CONTENT) -->
+  <!-- ========================================================================= -->
+  <div class="container-fluid px-3">
+    <div class="row">
+
+      <!-- --------------------------------------------------------------------- -->
+      <!-- GLOBALE LIVE-SIDEBAR MIT STEPPER-BUTTONS [-] / [+] -->
+      <!-- --------------------------------------------------------------------- -->
+      <div class="col-lg-3 col-xl-2 py-3 sidebar-wrapper">
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+          <span class="fw-bold text-dark"><i class="bi bi-sliders text-primary me-1"></i> Live-Gewichte</span>
+          <span id="sidebar-sum-badge" class="badge rounded-pill bg-success text-white badge-pill-weight">100.0%</span>
+        </div>
+
+        <!-- Portfolio Umschalter P1 / P2 / P3 -->
+        <div class="btn-group w-100 mb-2" role="group">
+          <input type="radio" class="btn-check" name="sidebar_port_choice" id="port1_radio" value="portfolio_1" checked>
+          <label class="btn btn-outline-primary btn-sm" for="port1_radio">P1</label>
+
+          <input type="radio" class="btn-check" name="sidebar_port_choice" id="port2_radio" value="portfolio_2">
+          <label class="btn btn-outline-primary btn-sm" for="port2_radio">P2</label>
+
+          <input type="radio" class="btn-check" name="sidebar_port_choice" id="port3_radio" value="portfolio_3">
+          <label class="btn btn-outline-primary btn-sm" for="port3_radio">P3</label>
+        </div>
+
+        <div id="sidebar-port-header"></div>
+
+        <!-- Schnellaktionen -->
+        <div class="d-flex gap-1 mb-2">
+          <button id="sidebar-btn-norm" class="btn btn-outline-primary btn-sm flex-fill" style="font-size: 0.75rem; padding: 2px 4px;" title="Auf 100% skalieren">100%</button>
+          <button id="sidebar-btn-eq" class="btn btn-outline-secondary btn-sm flex-fill" style="font-size: 0.75rem; padding: 2px 4px;" title="Gleichgewichtung">= Equal</button>
+          <button id="sidebar-btn-clear" class="btn btn-outline-danger btn-sm flex-fill" style="font-size: 0.75rem; padding: 2px 4px;" title="Leeren">Leeren</button>
+        </div>
+
+        <!-- Scrollbare Liste mit Stepper Buttons -->
+        <div id="sidebar-etf-list" style="max-height: 380px; overflow-y: auto; padding-right: 2px;"></div>
+
+        <!-- ETF Hinzufügen -->
+        <div class="mt-2 pt-2 border-top">
+          <label class="text-secondary small fw-bold mb-1">ETF hinzufügen:</label>
+          <div class="d-flex gap-1">
+            <select id="sidebar-select-add-etf" class="form-select form-select-sm"></select>
+            <button id="sidebar-btn-add-etf" class="btn btn-primary btn-sm px-2"><i class="bi bi-plus"></i></button>
+          </div>
+        </div>
+
+        <!-- Footer & Speichern -->
+        <hr class="my-2">
+        <div class="d-flex flex-column gap-1">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">Status:</span>
+            <span id="sidebar-save-status" class="badge bg-light text-muted border small"><i class="bi bi-clock-history me-1"></i>Gespeichert</span>
+          </div>
+          <div class="d-flex gap-2">
+            <button id="sidebar-btn-save" class="btn btn-primary btn-sm flex-fill fw-semibold"><i class="bi bi-floppy me-1"></i> Speichern</button>
+            <button id="sidebar-btn-reset" class="btn btn-outline-danger btn-sm" title="Standardwerte"><i class="bi bi-arrow-counterclockwise"></i></button>
+          </div>
+          <div class="d-flex gap-1 mt-1">
+            <button id="btn-export-json" class="btn btn-outline-secondary btn-sm flex-fill" style="font-size: 0.75rem;" title="Portfolios als JSON herunterladen"><i class="bi bi-download me-1"></i> Export</button>
+            <button id="btn-import-json-trigger" class="btn btn-outline-secondary btn-sm flex-fill" style="font-size: 0.75rem;" title="JSON-Datei laden"><i class="bi bi-upload me-1"></i> Import</button>
+            <input type="file" id="input-import-json-file" accept=".json" class="d-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- --------------------------------------------------------------------- -->
+      <!-- TAB INHALTE -->
+      <!-- --------------------------------------------------------------------- -->
+      <div class="col-lg-9 col-xl-10 py-3">
+
+        <!-- =================================================================== -->
+        <!-- TAB 1: 📊 DASHBOARD & ÜBERSICHT -->
+        <!-- =================================================================== -->
+        <div id="tab_dashboard" class="tab-content-panel">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+            <div>
+              <h4 class="mb-0 fw-bold text-dark">Portfolio-Übersicht & Multi-Asset Look-Through</h4>
+              <p class="text-muted small mb-0">Direkte Live-Aktualisierung bei Anpassungen in der Sidebar (0 ms Latenz).</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="toggle-normalize-holdings" checked>
+                <label class="form-check-label small fw-semibold" for="toggle-normalize-holdings">100% Look-Through Skalierung</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards Row -->
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon bg-primary-subtle text-primary"><i class="bi bi-pie-chart"></i></div>
+                <div class="value-box-content">
+                  <h6>Aktienanteil</h6>
+                  <div class="value" id="kpi-val-equity">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon text-teal" style="background-color:#E6FFFA;color:#0D9488;"><i class="bi bi-bank"></i></div>
+                <div class="value-box-content">
+                  <h6>Anleihenanteil</h6>
+                  <div class="value" id="kpi-val-bonds">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon" style="background-color:#FDF2F0;color:#8C564B;"><i class="bi bi-buildings"></i></div>
+                <div class="value-box-content">
+                  <h6>Real Estate</h6>
+                  <div class="value" id="kpi-val-re">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon bg-success-subtle text-success"><i class="bi bi-graph-up-arrow"></i></div>
+                <div class="value-box-content">
+                  <h6>Div. Rendite</h6>
+                  <div class="value" id="kpi-val-div">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon bg-warning-subtle text-warning"><i class="bi bi-activity"></i></div>
+                <div class="value-box-content">
+                  <h6>KGV (Harmon.)</h6>
+                  <div class="value" id="kpi-val-pe">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon bg-info-subtle text-info"><i class="bi bi-percent"></i></div>
+                <div class="value-box-content">
+                  <h6>YTM (Bonds)</h6>
+                  <div class="value" id="kpi-val-ytm">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon" style="background-color:#F0FDF4;color:#16A34A;"><i class="bi bi-clock-history"></i></div>
+                <div class="value-box-content">
+                  <h6>Mod. Duration</h6>
+                  <div class="value" id="kpi-val-dur">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3 col-xl">
+              <div class="value-box">
+                <div class="value-box-icon bg-secondary-subtle text-secondary"><i class="bi bi-layers"></i></div>
+                <div class="value-box-content">
+                  <h6>N_eff (Holdings)</h6>
+                  <div class="value" id="kpi-val-neff">-</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row 1: Assetklassen-Divergenzen & Regionen-Divergenzen -->
+          <div class="row g-3 mb-3">
+            <div class="col-lg-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-stack text-primary me-1"></i> Assetklassen-Divergenzen (Delta)</span>
+                  <select id="select-dash-asset-delta-pair" class="form-select form-select-sm" style="width: 140px;">
+                    <option value="delta_p1_p2">P1 vs. P2</option>
+                    <option value="delta_p1_p3">P1 vs. P3</option>
+                    <option value="delta_p2_p3">P2 vs. P3</option>
+                  </select>
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_dash_asset_delta" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-geo-alt text-primary me-1"></i> Regionen-Divergenzen (Aktien-Delta)</span>
+                  <select id="select-dash-region-delta-pair" class="form-select form-select-sm" style="width: 140px;">
+                    <option value="delta_p1_p2">P1 vs. P2</option>
+                    <option value="delta_p1_p3">P1 vs. P3</option>
+                    <option value="delta_p2_p3">P2 vs. P3</option>
+                  </select>
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_dash_region_delta" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row 2: Top 10 Snapshot & Multi-Asset Matrix -->
+          <div class="row g-3 mb-3">
+            <div class="col-lg-5">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-trophy text-primary me-1"></i> Top 10 Einzeltitel Snapshot (Aktien)</span>
+                </div>
+                <div class="card-body p-0">
+                  <div id="table_dash_top10"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-7">
+              <div class="card h-100">
+                <div class="card-header">
+                  <i class="bi bi-globe text-primary me-1"></i> Asset-Allokation & Renditekennzahlen im Überblick
+                </div>
+                <div class="card-body p-0">
+                  <div id="table_dash_multi_asset"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 2: 🌐 ALLOKATION & WÄHRUNGEN -->
+        <!-- =================================================================== -->
+        <div id="tab_allocation" class="tab-content-panel d-none">
+          <div class="mb-3 pb-2 border-bottom">
+            <h4 class="mb-0 fw-bold text-dark">Asset-Allokation, Währungsmix & Renditekennzahlen</h4>
+            <p class="text-muted small mb-0">Aufteilung in Aktien vs. Anleihen, gewichtete Dividendenrendite, Yield to Maturity und Modified Duration nach Währung.</p>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-stack text-primary me-1"></i> Assetklassen-Aufteilung (Aktien vs. Bonds)</div>
+                <div class="card-body p-2"><div id="plot_asset_allocation" style="height: 280px;"></div></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-currency-exchange text-primary me-1"></i> Gesamter Währungsmix (Look-Through)</div>
+                <div class="card-body p-2"><div id="plot_overall_currency" style="height: 280px;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="card h-100 border-primary">
+                <div class="card-header bg-primary text-white"><i class="bi bi-graph-up-arrow me-1"></i> Aktien-Segment Währungsmix</div>
+                <div class="card-body p-2"><div id="plot_equity_currency" style="height: 240px;"></div></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100 border-teal" style="border-color:#0D9488;">
+                <div class="card-header text-white" style="background-color:#0D9488;"><i class="bi bi-bank me-1"></i> Anleihen-Segment Währungsmix</div>
+                <div class="card-body p-2"><div id="plot_bond_currency" style="height: 240px;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-table text-primary me-1"></i> Währungs-Vergleichstabelle (Gesamtportfolio)</div>
+                <div class="card-body p-0"><div id="table_overall_currency_detail"></div></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-currency-exchange text-primary me-1"></i> Währungsdetails (Aktien & Anleihen)</div>
+                <div class="card-body p-0">
+                  <ul class="nav nav-tabs nav-fill" id="currSubTabs" role="tablist">
+                    <li class="nav-item"><button class="nav-link active py-1" data-bs-toggle="tab" data-bs-target="#tab-eq-curr">Aktien (KGV, KBV, Div)</button></li>
+                    <li class="nav-item"><button class="nav-link py-1" data-bs-toggle="tab" data-bs-target="#tab-bd-curr">Anleihen (YTM, Duration)</button></li>
+                  </ul>
+                  <div class="tab-content">
+                    <div class="tab-pane fade show active" id="tab-eq-curr"><div id="table_equity_currency_detail"></div></div>
+                    <div class="tab-pane fade" id="tab-bd-curr"><div id="table_bond_currency_detail"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 3: 🏢 SEKTOREN (11 GICS - AKTIEN) -->
+        <!-- =================================================================== -->
+        <div id="tab_sectors" class="tab-content-panel d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <div>
+              <h4 class="mb-0 fw-bold text-dark">GICS Sektor-Mix & Allokationsdifferenzen (Aktien)</h4>
+              <p class="text-muted small mb-0">Bereinigt auf die offiziellen 11 GICS-Sektoren für den Aktienanteil der Portfolios.</p>
+            </div>
+            <div class="badge bg-light text-secondary border px-3 py-2">
+              <i class="bi bi-shield-check text-success me-1"></i> 11 GICS Standard-Klassifikation
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-lg-4">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-pie-chart text-primary me-1"></i> 11 GICS Sektormix (Aktienanteil)</div>
+                <div class="card-body p-2"><div id="plot_sector_pie" style="height: 380px;"></div></div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-bar-chart-fill text-primary me-1"></i> Sektorallokation (%)</div>
+                <div class="card-body p-2"><div id="plot_sector_bars" style="height: 380px;"></div></div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-arrow-left-right text-primary me-1"></i> Sektor-Divergenzen</span>
+                  <select id="select-sector-delta-pair" class="form-select form-select-sm" style="width: 130px;">
+                    <option value="delta_p1_p2">P1 vs. P2</option>
+                    <option value="delta_p1_p3">P1 vs. P3</option>
+                    <option value="delta_p2_p3">P2 vs. P3</option>
+                  </select>
+                </div>
+                <div class="card-body p-2"><div id="plot_sector_delta" style="height: 380px;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-table text-primary me-1"></i> Detaillierte Sektor-Vergleichstabelle</div>
+            <div class="card-body p-0"><div id="table_sectors_detail"></div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <span><i class="bi bi-search text-primary me-1"></i> Sektor-Drilldown: Aktien-Einzeltitel nach GICS-Sektor</span>
+              <div style="min-width: 250px;">
+                <select id="select-drilldown-sector" class="form-select form-select-sm"></select>
+              </div>
+            </div>
+            <div class="card-body p-0"><div id="table_sector_drilldown"></div></div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 4: 🏆 TOP HOLDINGS & LOOK-THROUGH -->
+        <!-- =================================================================== -->
+        <div id="tab_holdings" class="tab-content-panel d-none">
+          <div class="mb-3 pb-2 border-bottom">
+            <h4 class="mb-0 fw-bold text-dark">Top 20 Einzeltitel (Aktien) & Vollständiger Look-Through</h4>
+            <p class="text-muted small mb-0">Transparenz über Einzeltitelgewichtungen, Klumpenrisiken und ETF-Überlappungen.</p>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-bar-chart-steps text-primary me-1"></i> Top 20 Aktien-Holdings im Vergleich</div>
+                <div class="card-body p-2"><div id="plot_top20_bars" style="height: 520px;"></div></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-list-ol text-primary me-1"></i> Top 20 Aktien-Holdings Rangliste</div>
+                <div class="card-body p-0"><div id="table_top20_detail"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <span><i class="bi bi-search-heart text-primary me-1"></i> Vollständiger Look-Through (Durchsuchbar)</span>
+              <div class="d-flex gap-2 align-items-center flex-wrap">
+                <select id="select-full-table-asset-class" class="form-select form-select-sm" style="width: 165px;">
+                  <option value="all" selected>Alle Assetklassen</option>
+                  <option value="Aktien">Aktien</option>
+                  <option value="Bonds">Bonds</option>
+                  <option value="Real Estate">Real Estate</option>
+                  <option value="Rohstoffe">Rohstoffe</option>
+                  <option value="Cash">Cash</option>
+                </select>
+                <select id="select-full-table-port" class="form-select form-select-sm" style="width: 160px;">
+                  <option value="portfolio_1">Portfolio 1</option>
+                  <option value="portfolio_2">Portfolio 2</option>
+                  <option value="portfolio_3">Portfolio 3</option>
+                </select>
+                <input type="text" id="input-full-table-search" class="form-control form-control-sm" placeholder="Titel / Ticker suchen..." style="width: 180px;">
+              </div>
+            </div>
+            <div class="card-body p-0"><div id="table_full_lookthrough"></div></div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 5: 📈 KONZENTRATIONSMASSE & DIVERSIFIKATION -->
+        <!-- =================================================================== -->
+        <div id="tab_concentration" class="tab-content-panel d-none">
+          <div class="mb-3 pb-2 border-bottom">
+            <h4 class="mb-0 fw-bold text-dark">Konzentrations- und Diversifikationsanalyse (Aktien)</h4>
+            <p class="text-muted small mb-0">Herfindahl-Hirschman Index (HHI), Effektive Titelanzahl (N_eff) und Lorenz-Kurve für den Aktienteil.</p>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-activity text-primary me-1"></i> Kumulative Konzentrationskurve (Lorenz-Kurve)</div>
+                <div class="card-body p-2">
+                  <div id="plot_lorenz" style="height: 380px;"></div>
+                  <p class="text-muted small mt-2 mb-0">Je steiler die Kurve links ansteigt, desto stärker konzentrieren wenige Titel das gesamte Aktiengewicht.</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-info-circle text-primary me-1"></i> Kennzahlen-Vergleich (Aktien)</div>
+                <div class="card-body p-0">
+                  <div id="table_concentration_full"></div>
+                  <div class="p-3 bg-light border-top small text-secondary">
+                    <ul class="mb-0 ps-3">
+                      <li><strong>N_eff (Effektive Titelanzahl):</strong> 1 / sum(w_i^2). Entspricht der Diversifikation eines Portfolios aus N_eff gleichgewichteten Titeln.</li>
+                      <li><strong>HHI:</strong> Summe der quadrierten Prozentgewichte. Werte unter 1'500 gelten als breit diversifiziert.</li>
+                      <li><strong>Top 10 / 20:</strong> Kumulierter Prozentanteil der grössten 10 bzw. 20 Aktienpositionen.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 6: ⚙️ PORTFOLIO-EDITOR TAB -->
+        <!-- =================================================================== -->
+        <div id="tab_config" class="tab-content-panel d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+            <div>
+              <h4 class="mb-0 fw-bold text-dark">Portfolio-Baukasten & Verwaltung</h4>
+              <p class="text-muted small mb-0">Detaillierte Übersicht und Bearbeitung aller drei Portfolios nebeneinander.</p>
+            </div>
+            <div>
+              <button id="btn-config-save" class="btn btn-sm btn-primary fw-semibold"><i class="bi bi-floppy-fill me-1"></i> Portfolios speichern</button>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <!-- Portfolio 1 -->
+            <div class="col-md-4">
+              <div class="card h-100 border-primary">
+                <div class="card-header bg-primary text-white fw-bold"><i class="bi bi-briefcase-fill me-1"></i> Portfolio 1</div>
+                <div class="card-body p-3">
+                  <label class="form-label small fw-semibold">Portfolio Name:</label>
+                  <input type="text" id="config-name-portfolio_1" class="form-control form-control-sm mb-3">
+                  <h6 class="fw-bold text-secondary mb-2" style="font-size:0.85rem;">Enthaltene ETFs:</h6>
+                  <div id="config-list-portfolio_1"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Portfolio 2 -->
+            <div class="col-md-4">
+              <div class="card h-100 border-teal" style="border-color:#0D9488;">
+                <div class="card-header text-white fw-bold" style="background-color:#0D9488;"><i class="bi bi-briefcase-fill me-1"></i> Portfolio 2</div>
+                <div class="card-body p-3">
+                  <label class="form-label small fw-semibold">Portfolio Name:</label>
+                  <input type="text" id="config-name-portfolio_2" class="form-control form-control-sm mb-3">
+                  <h6 class="fw-bold text-secondary mb-2" style="font-size:0.85rem;">Enthaltene ETFs:</h6>
+                  <div id="config-list-portfolio_2"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Portfolio 3 -->
+            <div class="col-md-4">
+              <div class="card h-100 border-danger">
+                <div class="card-header bg-danger text-white fw-bold"><i class="bi bi-briefcase-fill me-1"></i> Portfolio 3</div>
+                <div class="card-body p-3">
+                  <label class="form-label small fw-semibold">Portfolio Name:</label>
+                  <input type="text" id="config-name-portfolio_3" class="form-control form-control-sm mb-3">
+                  <h6 class="fw-bold text-secondary mb-2" style="font-size:0.85rem;">Enthaltene ETFs:</h6>
+                  <div id="config-list-portfolio_3"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 7: 📚 ETF-UNIVERSUM & METADATEN -->
+        <!-- =================================================================== -->
+        <div id="tab_universe" class="tab-content-panel d-none">
+          <div class="mb-3 pb-2 border-bottom">
+            <h4 class="mb-0 fw-bold text-dark">Verfügbares ETF-Universum & Stammdaten</h4>
+            <p class="text-muted small mb-0">Vollständige Übersicht aller in Data.xlsx hinterlegten ETFs, Assetklassen, Regionen und Bewertungskennzahlen.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><i class="bi bi-database-check text-primary me-1"></i> Geladene ETFs & Index-Metadaten</div>
+            <div class="card-body p-0"><div id="table_etf_meta_summary"></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 1. Basisdaten & Portfolios (Stand-alone Datei-Einbindung für Doppelklick ohne Server!) -->
+  <script src="data/etf_data.js"></script>
+  <script src="data/saved_portfolios.js"></script>
+
+  <!-- 2. Anwendungsmodule (Standard Global Scripts, keine CORS/fetch-Beschränkungen) -->
+  <script src="js/analytics.js"></script>
+  <script src="js/persistence.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/tables.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
