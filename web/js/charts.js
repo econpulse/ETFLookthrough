@@ -278,7 +278,7 @@
     if (!elem || typeof Plotly === 'undefined') return;
 
     const yVals = sectorData.map(d => d.gics_sector);
-    const xVals = sectorData.map(d => d[deltaPair] || 0);
+    const xVals = sectorData.map(d => Number(Number(d[deltaPair] || 0).toFixed(2)));
     const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
 
     const trace = {
@@ -334,7 +334,7 @@
     }
 
     const yVals = activeRegionData.map(d => d.region);
-    const xVals = activeRegionData.map(d => d[deltaPair] || 0);
+    const xVals = activeRegionData.map(d => Number(Number(d[deltaPair] || 0).toFixed(2)));
     const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
 
     const trace = {
@@ -389,7 +389,7 @@
     }
 
     const yVals = activeAssets.map(d => d.asset_type);
-    const xVals = activeAssets.map(d => d[deltaPair] || 0);
+    const xVals = activeAssets.map(d => Number(Number(d[deltaPair] || 0).toFixed(2)));
     const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
 
     const trace = {

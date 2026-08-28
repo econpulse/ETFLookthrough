@@ -234,7 +234,7 @@ create_sector_delta_chart <- function(sector_df, p_names, compare_pair = "p1_p2"
       delta = ifelse(abs(delta_raw) < 0.001, 0, delta_raw),
       hover_label = paste0(
         "<b>", gics_sector, "</b><br>",
-        "Δ Gewicht: <b>", sprintf("%+.1f%%-Pkt.", delta), "</b>"
+        "Δ Gewicht: <b>", sprintf("%+.2f%%-Pkt.", delta), "</b>"
       ),
       color_bar = ifelse(delta >= 0, pos_color, neg_color)
     ) %>%
@@ -331,7 +331,7 @@ create_region_delta_chart <- function(region_df, p_names, compare_pair = "p1_p2"
       delta = ifelse(abs(delta_raw) < 0.001, 0, delta_raw),
       hover_label = paste0(
         "<b>", region, "</b><br>",
-        "Δ Gewicht: <b>", sprintf("%+.1f%%-Pkt.", delta), "</b>"
+        "Δ Gewicht: <b>", sprintf("%+.2f%%-Pkt.", delta), "</b>"
       ),
       color_bar = ifelse(delta >= 0, pos_color, neg_color)
     ) %>%
@@ -437,7 +437,7 @@ create_asset_delta_chart <- function(asset_df, p_names, compare_pair = "p1_p2") 
       delta = ifelse(abs(delta_raw) < 0.001, 0, delta_raw),
       hover_label = paste0(
         "<b>", asset_type, "</b><br>",
-        "Δ Gewicht: <b>", sprintf("%+.1f%%-Pkt.", delta), "</b>"
+        "Δ Gewicht: <b>", sprintf("%+.2f%%-Pkt.", delta), "</b>"
       ),
       color_bar = ifelse(delta >= 0, pos_color, neg_color)
     ) %>%
