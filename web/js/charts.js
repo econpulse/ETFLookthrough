@@ -273,13 +273,38 @@
     Plotly.react(elem, traces, layout, { responsive: true, displayModeBar: false });
   }
 
-  function renderSectorDeltaPlot(elementId, sectorData, deltaPair = "delta_p1_p2") {
+  function renderSectorDeltaPlot(elementId, sectorData, deltaPair = "delta_p1_p2", portfoliosState = null) {
     const elem = document.getElementById(elementId);
     if (!elem || typeof Plotly === 'undefined') return;
+
+    let colA = "weight_portfolio_1";
+    let colB = "weight_portfolio_2";
+    let nameA = portfoliosState?.portfolio_1?.name || "P1";
+    let nameB = portfoliosState?.portfolio_2?.name || "P2";
+
+    if (deltaPair === "delta_p1_p3") {
+      colA = "weight_portfolio_1";
+      colB = "weight_portfolio_3";
+      nameA = portfoliosState?.portfolio_1?.name || "P1";
+      nameB = portfoliosState?.portfolio_3?.name || "P3";
+    } else if (deltaPair === "delta_p2_p3") {
+      colA = "weight_portfolio_2";
+      colB = "weight_portfolio_3";
+      nameA = portfoliosState?.portfolio_2?.name || "P2";
+      nameB = portfoliosState?.portfolio_3?.name || "P3";
+    }
 
     const yVals = sectorData.map(d => d.gics_sector);
     const xVals = sectorData.map(d => Number(Number(d[deltaPair] || 0).toFixed(2)));
     const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
+
+    const hoverTexts = sectorData.map(d => {
+      const vA = Number(d[colA] || 0).toFixed(2);
+      const vB = Number(d[colB] || 0).toFixed(2);
+      const delta = Number(d[deltaPair] || 0).toFixed(2);
+      const sign = Number(delta) >= 0 ? "+" : "";
+      return `<b>${d.gics_sector}</b><br>${nameA}: ${vA}%<br>${nameB}: ${vB}%<br>Δ (${nameA} − ${nameB}): <b>${sign}${delta}%-Pkt.</b>`;
+    });
 
     const trace = {
       y: yVals,
@@ -287,13 +312,14 @@
       type: "bar",
       orientation: "h",
       marker: { color: colors },
-      hovertemplate: `<b>%{y}</b><br>Delta: %{x:+.2f}%<extra></extra>`
+      hovertext: hoverTexts,
+      hoverinfo: "text"
     };
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
       margin: { t: 20, r: 20, l: 150, b: 40 },
-      xaxis: { title: `Übergewicht / Untergewicht (%)`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
+      xaxis: { title: `Differenz (${nameA} [+] vs. ${nameB} [−]) in %-Pkt.`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
       yaxis: { autorange: "reversed" },
       shapes: [{
         type: "line",
@@ -306,18 +332,25 @@
     Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
   }
 
-  function renderRegionDeltaPlot(elementId, regionData, deltaPair = "delta_p1_p2") {
+  function renderRegionDeltaPlot(elementId, regionData, deltaPair = "delta_p1_p2", portfoliosState = null) {
     const elem = document.getElementById(elementId);
     if (!elem || typeof Plotly === 'undefined') return;
 
     let colA = "weight_portfolio_1";
     let colB = "weight_portfolio_2";
+    let nameA = portfoliosState?.portfolio_1?.name || "P1";
+    let nameB = portfoliosState?.portfolio_2?.name || "P2";
+
     if (deltaPair === "delta_p1_p3") {
       colA = "weight_portfolio_1";
       colB = "weight_portfolio_3";
+      nameA = portfoliosState?.portfolio_1?.name || "P1";
+      nameB = portfoliosState?.portfolio_3?.name || "P3";
     } else if (deltaPair === "delta_p2_p3") {
       colA = "weight_portfolio_2";
       colB = "weight_portfolio_3";
+      nameA = portfoliosState?.portfolio_2?.name || "P2";
+      nameB = portfoliosState?.portfolio_3?.name || "P3";
     }
 
     // Nur Regionen herausfiltern, die tatsächlich in mindestens einem der beiden verglichenen Portfolios vorkommen
@@ -337,19 +370,28 @@
     const xVals = activeRegionData.map(d => Number(Number(d[deltaPair] || 0).toFixed(2)));
     const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
 
+    const hoverTexts = activeRegionData.map(d => {
+      const vA = Number(d[colA] || 0).toFixed(2);
+      const vB = Number(d[colB] || 0).toFixed(2);
+      const delta = Number(d[deltaPair] || 0).toFixed(2);
+      const sign = Number(delta) >= 0 ? "+" : "";
+      return `<b>${d.region}</b><br>${nameA}: ${vA}%<br>${nameB}: ${vB}%<br>Δ (${nameA} − ${nameB}): <b>${sign}${delta}%-Pkt.</b>`;
+    });
+
     const trace = {
       y: yVals,
       x: xVals,
       type: "bar",
       orientation: "h",
       marker: { color: colors },
-      hovertemplate: `<b>%{y}</b><br>Delta: %{x:+.2f}%<extra></extra>`
+      hovertext: hoverTexts,
+      hoverinfo: "text"
     };
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
       margin: { t: 20, r: 20, l: 130, b: 40 },
-      xaxis: { title: `Übergewicht / Untergewicht (%)`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
+      xaxis: { title: `Differenz (${nameA} [+] vs. ${nameB} [−]) in %-Pkt.`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
       yaxis: { autorange: "reversed" },
       shapes: [{
         type: "line",
@@ -362,18 +404,25 @@
     Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
   }
 
-  function renderAssetDeltaPlot(elementId, assetCompareData, deltaPair = "delta_p1_p2") {
+  function renderAssetDeltaPlot(elementId, assetCompareData, deltaPair = "delta_p1_p2", portfoliosState = null) {
     const elem = document.getElementById(elementId);
     if (!elem || typeof Plotly === 'undefined' || !Array.isArray(assetCompareData)) return;
 
     let colA = "weight_portfolio_1";
     let colB = "weight_portfolio_2";
+    let nameA = portfoliosState?.portfolio_1?.name || "P1";
+    let nameB = portfoliosState?.portfolio_2?.name || "P2";
+
     if (deltaPair === "delta_p1_p3") {
       colA = "weight_portfolio_1";
       colB = "weight_portfolio_3";
+      nameA = portfoliosState?.portfolio_1?.name || "P1";
+      nameB = portfoliosState?.portfolio_3?.name || "P3";
     } else if (deltaPair === "delta_p2_p3") {
       colA = "weight_portfolio_2";
       colB = "weight_portfolio_3";
+      nameA = portfoliosState?.portfolio_2?.name || "P2";
+      nameB = portfoliosState?.portfolio_3?.name || "P3";
     }
 
     const activeAssets = assetCompareData.filter(d => 
@@ -392,19 +441,28 @@
     const xVals = activeAssets.map(d => Number(Number(d[deltaPair] || 0).toFixed(2)));
     const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
 
+    const hoverTexts = activeAssets.map(d => {
+      const vA = Number(d[colA] || 0).toFixed(2);
+      const vB = Number(d[colB] || 0).toFixed(2);
+      const delta = Number(d[deltaPair] || 0).toFixed(2);
+      const sign = Number(delta) >= 0 ? "+" : "";
+      return `<b>${d.asset_type}</b><br>${nameA}: ${vA}%<br>${nameB}: ${vB}%<br>Δ (${nameA} − ${nameB}): <b>${sign}${delta}%-Pkt.</b>`;
+    });
+
     const trace = {
       y: yVals,
       x: xVals,
       type: "bar",
       orientation: "h",
       marker: { color: colors },
-      hovertemplate: `<b>%{y}</b><br>Delta: %{x:+.2f}%-Pkt.<extra></extra>`
+      hovertext: hoverTexts,
+      hoverinfo: "text"
     };
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
       margin: { t: 20, r: 20, l: 110, b: 40 },
-      xaxis: { title: `Übergewicht / Untergewicht (%-Punkte)`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
+      xaxis: { title: `Differenz (${nameA} [+] vs. ${nameB} [−]) in %-Pkt.`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
       yaxis: { autorange: "reversed" },
       shapes: [{
         type: "line",

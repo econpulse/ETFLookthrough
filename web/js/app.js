@@ -90,7 +90,10 @@
     // 2. Sidebar rendern
     renderSidebar();
 
-    // 3. Aktiven Tab aktualisieren
+    // 3. Dropdown-Labels synchronisieren
+    updateDeltaDropdownLabels();
+
+    // 4. Aktiven Tab aktualisieren
     renderActiveTab({
       calcPorts,
       sectorData,
@@ -100,6 +103,27 @@
       lorenzData,
       assetCurrMetrics
     });
+  }
+
+  function updateDeltaDropdownLabels() {
+    const p1Name = state.portfolios?.portfolio_1?.name || "P1";
+    const p2Name = state.portfolios?.portfolio_2?.name || "P2";
+    const p3Name = state.portfolios?.portfolio_3?.name || "P3";
+
+    const updateSelect = (id, currentVal) => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const val = currentVal || sel.value || "delta_p1_p2";
+      sel.innerHTML = `
+        <option value="delta_p1_p2" ${val === "delta_p1_p2" ? "selected" : ""}>${p1Name} vs. ${p2Name}</option>
+        <option value="delta_p1_p3" ${val === "delta_p1_p3" ? "selected" : ""}>${p1Name} vs. ${p3Name}</option>
+        <option value="delta_p2_p3" ${val === "delta_p2_p3" ? "selected" : ""}>${p2Name} vs. ${p3Name}</option>
+      `;
+    };
+
+    updateSelect('select-dash-region-delta-pair', state.selectedDashRegionDeltaPair);
+    updateSelect('select-dash-asset-delta-pair', state.selectedDashAssetDeltaPair);
+    updateSelect('select-sector-delta-pair', state.selectedDeltaPair);
   }
 
   /**
@@ -178,13 +202,11 @@
                 <span class="fw-semibold text-dark" style="font-size: 0.83rem;">${tickerInfo.label}</span>
                 ${badge}
               </div>
-              <button class="btn btn-outline-danger btn-sm p-0 px-1 border-0 fw-bold btn-del-etf" data-ric="${ric}" title="Entfernen">×</button>
+              <button class="btn btn-link text-danger p-0 btn-del-etf" data-ric="${ric}" title="Entfernen" style="text-decoration:none; font-size:1.1rem; line-height:1;">×</button>
             </div>
-            <div class="d-flex align-items-center justify-content-between">
-              <button class="btn btn-outline-secondary btn-sm stepper-btn btn-dec-etf" data-ric="${ric}">-</button>
-              <span class="badge bg-light text-dark border font-monospace fw-bold px-2 py-1" style="font-size: 0.85rem; min-width: 65px; text-align: center;">
-                ${wVal.toFixed(1)}%
-              </span>
+            <div class="d-flex justify-content-between align-items-center">
+              <button class="btn btn-outline-primary btn-sm stepper-btn btn-dec-etf" data-ric="${ric}">-</button>
+              <span class="badge bg-light text-dark border weight-pill px-3 py-1" style="font-size: 0.88rem;">${wVal.toFixed(1)}%</span>
               <button class="btn btn-outline-primary btn-sm stepper-btn btn-inc-etf" data-ric="${ric}">+</button>
             </div>
           </div>
@@ -251,8 +273,8 @@
 
     if (state.activeTab === "tab_dashboard") {
       renderDashboardKpis(assetCurrMetrics.summaryMetrics, concMetrics);
-      Charts.renderAssetDeltaPlot("plot_dash_asset_delta", assetCurrMetrics.assetClassComparison, state.selectedDashAssetDeltaPair);
-      Charts.renderRegionDeltaPlot("plot_dash_region_delta", regionData, state.selectedDashRegionDeltaPair);
+      Charts.renderAssetDeltaPlot("plot_dash_asset_delta", assetCurrMetrics.assetClassComparison, state.selectedDashAssetDeltaPair, state.portfolios);
+      Charts.renderRegionDeltaPlot("plot_dash_region_delta", regionData, state.selectedDashRegionDeltaPair, state.portfolios);
       Tables.renderDashboardTop10Table("table_dash_top10", topHoldings.combinedTop, state.portfolios);
       Tables.renderMultiAssetSummaryTable("table_dash_multi_asset", assetCurrMetrics.summaryMetrics, state.portfolios);
     } else if (state.activeTab === "tab_allocation") {
@@ -295,7 +317,7 @@
     } else if (state.activeTab === "tab_sectors") {
       Charts.renderDashboardSectors("plot_sector_pie", sectorData, state.activeSidebarPort, pConf.name);
       Charts.renderSectorBarsPlot("plot_sector_bars", sectorData, state.portfolios);
-      Charts.renderSectorDeltaPlot("plot_sector_delta", sectorData, state.selectedDeltaPair);
+      Charts.renderSectorDeltaPlot("plot_sector_delta", sectorData, state.selectedDeltaPair, state.portfolios);
       Tables.renderSectorDetailTable("table_sectors_detail", sectorData);
       Tables.renderSectorDrilldownTable("table_sector_drilldown", calcPorts, state.selectedDrilldownSector);
     } else if (state.activeTab === "tab_holdings") {
@@ -346,6 +368,11 @@
       const nameInput = document.getElementById(`config-name-${pKey}`);
       if (nameInput && document.activeElement !== nameInput) {
         nameInput.value = pConf.name || "";
+      }
+
+      const enabledSwitch = document.getElementById(`config-enabled-${pKey}`);
+      if (enabledSwitch) {
+        enabledSwitch.checked = pConf.enabled !== false;
       }
 
       const listDiv = document.getElementById(`config-list-${pKey}`);
@@ -487,6 +514,7 @@
             const ric = inp.getAttribute('data-ric');
             const port = inp.getAttribute('data-port');
             state.portfolios[port].weights[ric] = Math.max(0, Number(e.target.value) || 0);
+            state.portfolios[port].enabled = true;
             state.saveStatus = "Ungespeichert";
             if (typeof Persistence !== 'undefined' && Persistence.savePortfolios) {
               Persistence.savePortfolios(state.portfolios);
@@ -525,6 +553,21 @@
 
         state.activeTab = targetTab;
         updateApp();
+      });
+    });
+
+    // Config Tab Aktiv-Schalter
+    document.querySelectorAll('.config-port-enabled').forEach(sw => {
+      sw.addEventListener('change', (e) => {
+        const pKey = sw.getAttribute('data-port');
+        if (state.portfolios[pKey]) {
+          state.portfolios[pKey].enabled = e.target.checked;
+          state.saveStatus = "Ungespeichert";
+          if (typeof Persistence !== 'undefined' && Persistence.savePortfolios) {
+            Persistence.savePortfolios(state.portfolios);
+          }
+          updateApp();
+        }
       });
     });
 
