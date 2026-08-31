@@ -802,7 +802,7 @@ server <- function(input, output, session) {
         )
       } else {
         div(
-          style = "max-height: 380px; overflow-y: auto; padding-right: 2px;",
+          style = "max-height: 620px; overflow-y: auto; padding-right: 2px;",
           lapply(current_etfs, function(ric) {
             clean_ric <- gsub("[^A-Za-z0-9]", "_", ric)
             meta <- get_meta(ric)
