@@ -173,3 +173,45 @@ body {
   font-size: 0.85rem;
   padding: 4px 8px;
 }
+
+/* Drag and Drop in Portfolio Editor */
+.config-etf-row {
+  cursor: grab;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.config-etf-row:active {
+  cursor: grabbing;
+}
+
+.config-etf-row.dragging {
+  opacity: 0.35;
+  background-color: #EFF6FF !important;
+  border: 1px dashed var(--lukb-primary) !important;
+}
+
+.config-etf-row.drag-over-top {
+  border-top: 3px solid var(--lukb-primary) !important;
+}
+
+.config-etf-row.drag-over-bottom {
+  border-bottom: 3px solid var(--lukb-primary) !important;
+}
+
+.config-drag-handle {
+  cursor: grab;
+  color: #94A3B8;
+  font-size: 1.15rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.config-drag-handle:hover {
+  color: var(--lukb-primary);
+}
+
+.config-etf-row:active .config-drag-handle {
+  cursor: grabbing;
+}

@@ -337,6 +337,8 @@
     setVal('kpi-val-neff', (pConc.is_active && pConc.n_eff) ? `${pConc.n_eff}` : '-');
   }
 
+  let activeDragItem = null;
+
   function renderConfigTab() {
     const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"];
     portKeys.forEach(pKey => {
@@ -356,7 +358,7 @@
         listDiv.innerHTML = '<div class="text-muted small py-2 text-center border rounded bg-light">Keine ETFs</div>';
       } else {
         let html = '<div class="d-flex flex-column gap-2">';
-        rics.forEach(ric => {
+        rics.forEach((ric, idx) => {
           const tInfo = state.data.tickers.find(t => t.ric === ric) || { label: ric, asset_type: "Aktien" };
           let badge = `<span class="badge me-1" style="background-color:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;font-size:0.68rem;padding:2px 4px;">Aktien</span>`;
           if (tInfo.asset_type === "Bonds") {
@@ -370,15 +372,19 @@
           }
 
           html += `
-            <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border">
-              <div>
-                <div class="fw-semibold text-truncate" style="max-width: 170px;">${badge}<span>${tInfo.label}</span></div>
-                <div class="text-muted small">${ric}</div>
+            <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border config-etf-row" 
+                 draggable="true" data-port="${pKey}" data-ric="${ric}" data-index="${idx}">
+              <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 190px;">
+                <i class="bi bi-grip-vertical config-drag-handle" title="Ziehen zum Neuanordnen"></i>
+                <div class="text-truncate">
+                  <div class="fw-semibold text-truncate" style="max-width: 165px;">${badge}<span>${tInfo.label}</span></div>
+                  <div class="text-muted small">${ric}</div>
+                </div>
               </div>
               <div class="d-flex align-items-center gap-1">
                 <input type="number" step="0.5" class="form-control form-control-sm text-end font-monospace config-weight-input" 
-                       data-port="${pKey}" data-ric="${ric}" value="${weights[ric]}" style="width: 75px;">
-                <button class="btn btn-outline-danger btn-sm config-del-btn" data-port="${pKey}" data-ric="${ric}">×</button>
+                       data-port="${pKey}" data-ric="${ric}" value="${weights[ric]}" style="width: 75px;" draggable="false">
+                <button class="btn btn-outline-danger btn-sm config-del-btn" data-port="${pKey}" data-ric="${ric}" draggable="false">×</button>
               </div>
             </div>
           `;
@@ -386,12 +392,105 @@
         html += '</div>';
         listDiv.innerHTML = html;
 
+        // Drag and Drop Event Listeners
+        const rows = listDiv.querySelectorAll('.config-etf-row');
+        rows.forEach(row => {
+          row.addEventListener('dragstart', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+              e.preventDefault();
+              return;
+            }
+            const ric = row.getAttribute('data-ric');
+            const port = row.getAttribute('data-port');
+            const index = parseInt(row.getAttribute('data-index'), 10);
+            activeDragItem = { port, ric, index };
+            row.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', JSON.stringify(activeDragItem));
+          });
+
+          row.addEventListener('dragend', () => {
+            row.classList.remove('dragging');
+            rows.forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging'));
+            activeDragItem = null;
+          });
+
+          row.addEventListener('dragover', (e) => {
+            if (!activeDragItem || activeDragItem.port !== pKey || activeDragItem.ric === row.getAttribute('data-ric')) {
+              return;
+            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const rect = row.getBoundingClientRect();
+            const isTop = (e.clientY - rect.top) < (rect.height / 2);
+            if (isTop) {
+              row.classList.add('drag-over-top');
+              row.classList.remove('drag-over-bottom');
+            } else {
+              row.classList.add('drag-over-bottom');
+              row.classList.remove('drag-over-top');
+            }
+          });
+
+          row.addEventListener('dragleave', () => {
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+          });
+
+          row.addEventListener('drop', (e) => {
+            e.preventDefault();
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+            if (!activeDragItem || activeDragItem.port !== pKey) {
+              return;
+            }
+
+            const targetRic = row.getAttribute('data-ric');
+            const sourceRic = activeDragItem.ric;
+            if (sourceRic === targetRic) return;
+
+            const rect = row.getBoundingClientRect();
+            const isTop = (e.clientY - rect.top) < (rect.height / 2);
+
+            const currentWeights = state.portfolios[pKey].weights || {};
+            const currentRics = Object.keys(currentWeights);
+            const fromIdx = currentRics.indexOf(sourceRic);
+            if (fromIdx === -1) return;
+
+            // Remove source item
+            currentRics.splice(fromIdx, 1);
+
+            // Find new insertion index
+            let toIdx = currentRics.indexOf(targetRic);
+            if (toIdx === -1) return;
+            if (!isTop) {
+              toIdx += 1;
+            }
+            currentRics.splice(toIdx, 0, sourceRic);
+
+            // Reconstruct weights in new order
+            const newWeights = {};
+            currentRics.forEach(r => {
+              newWeights[r] = currentWeights[r];
+            });
+
+            state.portfolios[pKey].weights = newWeights;
+            state.saveStatus = "Ungespeichert";
+            if (typeof Persistence !== 'undefined' && Persistence.savePortfolios) {
+              Persistence.savePortfolios(state.portfolios);
+            }
+            updateApp();
+          });
+        });
+
         listDiv.querySelectorAll('.config-weight-input').forEach(inp => {
           inp.addEventListener('change', (e) => {
             const ric = inp.getAttribute('data-ric');
             const port = inp.getAttribute('data-port');
             state.portfolios[port].weights[ric] = Math.max(0, Number(e.target.value) || 0);
             state.saveStatus = "Ungespeichert";
+            if (typeof Persistence !== 'undefined' && Persistence.savePortfolios) {
+              Persistence.savePortfolios(state.portfolios);
+            }
             updateApp();
           });
         });
@@ -402,6 +501,9 @@
             const port = btn.getAttribute('data-port');
             delete state.portfolios[port].weights[ric];
             state.saveStatus = "Ungespeichert";
+            if (typeof Persistence !== 'undefined' && Persistence.savePortfolios) {
+              Persistence.savePortfolios(state.portfolios);
+            }
             updateApp();
           });
         });
