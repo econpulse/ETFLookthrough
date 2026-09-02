@@ -35,7 +35,9 @@
   const ASSET_TYPE_COLORS = {
     "Aktien": "#1E40AF",
     "Bonds": "#0D9488",
-    "Real Estate": "#8C564B"
+    "Real Estate": "#8C564B",
+    "Rohstoffe": "#D97706",
+    "Cash": "#16A34A"
   };
 
   const CURRENCY_COLORS = {
