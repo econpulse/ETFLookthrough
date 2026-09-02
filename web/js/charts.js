@@ -600,9 +600,100 @@
     Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
   }
 
+  /**
+   * Rendert einen 100% horizontal gestapelten Allokationsbalken für das Dashboard Single
+   */
+  function renderSingleStackedBar(elementId, items, portName = "Portfolio") {
+    const elem = document.getElementById(elementId);
+    if (!elem || typeof Plotly === 'undefined') return;
+
+    if (!items || items.length === 0) {
+      elem.innerHTML = '<div class="text-muted small text-center py-2">Keine Daten verfügbar</div>';
+      return;
+    }
+
+    const traces = items.map(d => ({
+      x: [d.value],
+      y: ["Allokation"],
+      name: d.label,
+      type: "bar",
+      orientation: "h",
+      marker: { color: d.color },
+      text: d.value >= 4 ? `<b>${d.label}</b> ${d.value.toFixed(1)}%` : (d.value >= 2 ? `${d.value.toFixed(1)}%` : ""),
+      textposition: "inside",
+      insidetextanchor: "middle",
+      hovertemplate: `<b>%{data.name}</b><br>Gewicht: %{x:.2f}%<extra></extra>`
+    }));
+
+    const layout = {
+      ...DEFAULT_PLOT_LAYOUT,
+      barmode: "stack",
+      height: 65,
+      margin: { t: 5, b: 25, l: 10, r: 10 },
+      xaxis: { range: [0, 100], showgrid: false, zeroline: false, showticklabels: false },
+      yaxis: { showgrid: false, zeroline: false, showticklabels: false },
+      legend: { orientation: "h", y: -0.8, x: 0.5, xanchor: "center" }
+    };
+
+    Plotly.react(elem, traces, layout, { responsive: true, displayModeBar: false });
+  }
+
+  /**
+   * Rendert horizontale Rang-Balken für Regionen, Währungen oder Issuer-Types
+   */
+  function renderSingleHorizontalBars(elementId, items, valueSuffix = "%", marginL = 110) {
+    const elem = document.getElementById(elementId);
+    if (!elem || typeof Plotly === 'undefined') return;
+
+    if (!items || items.length === 0) {
+      Plotly.newPlot(elem, [], {
+        ...DEFAULT_PLOT_LAYOUT,
+        annotations: [{ text: "Keine Daten verfügbar", showarrow: false, font: { size: 13, color: "#64748B" } }]
+      }, { responsive: true, displayModeBar: false });
+      return;
+    }
+
+    // Für Plotly umkehren, damit der grösste Wert oben steht
+    const revItems = [...items].reverse();
+
+    const trace = {
+      y: revItems.map(d => d.label),
+      x: revItems.map(d => d.value),
+      type: "bar",
+      orientation: "h",
+      marker: {
+        color: revItems.map(d => d.color || "#1E40AF"),
+        line: { color: "rgba(255,255,255,0.6)", width: 1 }
+      },
+      text: revItems.map(d => `${d.value.toFixed(1)}${valueSuffix}`),
+      textposition: "auto",
+      hoverinfo: "text",
+      hovertext: revItems.map(d => `<b>${d.label}</b><br>Anteil: ${d.value.toFixed(2)}${valueSuffix}`)
+    };
+
+    const layout = {
+      ...DEFAULT_PLOT_LAYOUT,
+      margin: { t: 10, r: 35, l: marginL, b: 25 },
+      xaxis: {
+        title: "",
+        gridcolor: "#E2E8F0",
+        zeroline: false,
+        ticksuffix: valueSuffix
+      },
+      yaxis: {
+        automargin: true,
+        tickfont: { size: 12, color: "#1E293B" }
+      }
+    };
+
+    Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
+  }
+
   const Charts = {
     renderDashboardSectors,
     renderSingleDonutPie,
+    renderSingleStackedBar,
+    renderSingleHorizontalBars,
     renderAssetAllocationPlot,
     renderAssetDeltaPlot,
     renderOverallCurrencyPlot,

@@ -439,99 +439,97 @@
             </div>
           </div>
 
-          <!-- Pie Charts Reihe 1: Aktien & Assetklassen -->
-          <div class="row g-3 mb-3">
-            <!-- 1. Assetklassen-Mix -->
-            <div class="col-lg-4">
-              <div class="card h-100 shadow-sm">
-                <div class="card-header fw-semibold">
-                  <i class="bi bi-pie-chart text-primary me-1"></i> Assetklassen-Mix
-                </div>
-                <div class="card-body p-2">
-                  <div id="plot_single_asset_classes" style="height: 320px;"></div>
-                </div>
-              </div>
+          <!-- 1. Allokations-Streifen: 100% Assetklassen-Allokation -->
+          <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center bg-light">
+              <span><i class="bi bi-layers-fill text-primary me-1"></i> Assetklassen-Gesamtallokation</span>
+              <span class="small text-muted font-monospace" style="font-size: 0.78rem;">100% Portfolio-Aufteilung</span>
             </div>
-
-            <!-- 2. Aktien nach Regionen -->
-            <div class="col-lg-4">
-              <div class="card h-100 shadow-sm">
-                <div class="card-header fw-semibold">
-                  <i class="bi bi-globe text-primary me-1"></i> Aktien nach Regionen
-                </div>
-                <div class="card-body p-2">
-                  <div id="plot_single_equity_regions" style="height: 320px;"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 3. Aktien nach Sektoren (mit Region-Drilldown) -->
-            <div class="col-lg-4">
-              <div class="card h-100 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <span class="fw-semibold"><i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren</span>
-                  <div class="d-flex align-items-center gap-1">
-                    <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
-                    <select id="select_single_equity_sector_region" class="form-select form-select-sm" style="width: 130px; font-size: 0.78rem;">
-                      <option value="Total">Total</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="card-body p-2">
-                  <div id="plot_single_equity_sectors" style="height: 320px;"></div>
-                </div>
-              </div>
+            <div class="card-body p-2">
+              <div id="plot_single_asset_classes" style="height: 70px;"></div>
             </div>
           </div>
 
-          <!-- Pie Charts Reihe 2: Währungsmix & Bonds -->
+          <!-- 2. Thematische 3-Spalten-Struktur: Makro/Währungen | Aktien-Welt | Anleihen-Welt -->
           <div class="row g-3 mb-3">
-            <!-- 4. Währungsmix (mit Anlageklassen-Drilldown) - Direkt unter Assetklassen-Mix -->
+            <!-- SPALTE 1: MAKRO & WÄHRUNGEN -->
             <div class="col-lg-4">
               <div class="card h-100 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
                   <span class="fw-semibold"><i class="bi bi-cash-stack text-warning me-1"></i> Währungsmix</span>
                   <div class="d-flex align-items-center gap-1">
                     <span class="text-muted small" style="font-size:0.75rem;">Filter:</span>
-                    <select id="select_single_currency_asset_class" class="form-select form-select-sm" style="width: 110px; font-size: 0.78rem;">
+                    <select id="select_single_currency_asset_class" class="form-select form-select-sm" style="width: 105px; font-size: 0.78rem;">
                       <option value="Total" selected>Total</option>
                       <option value="Aktien">Aktien</option>
                       <option value="Bonds">Bonds</option>
                     </select>
                   </div>
                 </div>
-                <div class="card-body p-2">
-                  <div id="plot_single_currencies" style="height: 320px;"></div>
+                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                  <div id="plot_single_currencies" style="height: 520px;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 5. Anleihen nach Regionen - Direkt unter Aktien nach Regionen -->
+            <!-- SPALTE 2: AKTIEN-WELT -->
             <div class="col-lg-4">
-              <div class="card h-100 shadow-sm">
-                <div class="card-header fw-semibold">
-                  <i class="bi bi-globe2 text-teal me-1" style="color:#0D9488;"></i> Anleihen nach Regionen
-                </div>
-                <div class="card-body p-2">
-                  <div id="plot_single_bond_regions" style="height: 320px;"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 6. Anleihen nach Sektoren / Issuer-Types (mit Region-Drilldown) - Direkt unter Aktien-Sektoren -->
-            <div class="col-lg-4">
-              <div class="card h-100 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <span class="fw-semibold"><i class="bi bi-shield-shaded text-teal me-1" style="color:#0D9488;"></i> Anleihen-Sektoren</span>
-                  <div class="d-flex align-items-center gap-1">
-                    <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
-                    <select id="select_single_bond_issuer_region" class="form-select form-select-sm" style="width: 130px; font-size: 0.78rem;">
-                      <option value="Total">Total</option>
-                    </select>
+              <div class="d-flex flex-column gap-3 h-100">
+                <!-- Aktien-Regionen (Balken) -->
+                <div class="card shadow-sm">
+                  <div class="card-header fw-semibold bg-light py-2">
+                    <i class="bi bi-globe text-primary me-1"></i> Aktien nach Regionen
+                  </div>
+                  <div class="card-body p-2">
+                    <div id="plot_single_equity_regions" style="height: 220px;"></div>
                   </div>
                 </div>
-                <div class="card-body p-2">
-                  <div id="plot_single_bond_issuers" style="height: 320px;"></div>
+
+                <!-- Aktien-Sektoren (Der einzige Donut als Star!) -->
+                <div class="card shadow-sm flex-fill">
+                  <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
+                    <span class="fw-semibold"><i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren</span>
+                    <div class="d-flex align-items-center gap-1">
+                      <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
+                      <select id="select_single_equity_sector_region" class="form-select form-select-sm" style="width: 125px; font-size: 0.78rem;">
+                        <option value="Total">Total</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="card-body p-2">
+                    <div id="plot_single_equity_sectors" style="height: 280px;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SPALTE 3: ANLEIHEN-WELT -->
+            <div class="col-lg-4">
+              <div class="d-flex flex-column gap-3 h-100">
+                <!-- Anleihen nach Regionen (Balken) -->
+                <div class="card shadow-sm">
+                  <div class="card-header fw-semibold bg-light py-2">
+                    <i class="bi bi-globe2 text-teal me-1" style="color:#0D9488;"></i> Anleihen nach Regionen
+                  </div>
+                  <div class="card-body p-2">
+                    <div id="plot_single_bond_regions" style="height: 220px;"></div>
+                  </div>
+                </div>
+
+                <!-- Anleihen nach Sektoren / Issuer-Types (Balken) -->
+                <div class="card shadow-sm flex-fill">
+                  <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
+                    <span class="fw-semibold"><i class="bi bi-shield-shaded text-teal me-1" style="color:#0D9488;"></i> Anleihen-Sektoren</span>
+                    <div class="d-flex align-items-center gap-1">
+                      <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
+                      <select id="select_single_bond_issuer_region" class="form-select form-select-sm" style="width: 125px; font-size: 0.78rem;">
+                        <option value="Total">Total</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="card-body p-2">
+                    <div id="plot_single_bond_issuers" style="height: 280px;"></div>
+                  </div>
                 </div>
               </div>
             </div>

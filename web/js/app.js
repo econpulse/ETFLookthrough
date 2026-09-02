@@ -412,28 +412,29 @@
         currSelect.value = state.singleCurrencyAssetClass || "Total";
       }
 
-      // Charts rendern
-      Charts.renderSingleDonutPie("plot_single_asset_classes", singlePies.assetClassesPie, pConf.name, "Assetklassen");
-      Charts.renderSingleDonutPie("plot_single_equity_regions", singlePies.equityRegionsPie, pConf.name, "Aktien-Regionen");
+      // Charts rendern:
+      // 1. Assetklassen als eleganter 100%-Allokationsstreifen
+      Charts.renderSingleStackedBar("plot_single_asset_classes", singlePies.assetClassesPie, pConf.name);
+
+      // 2. Währungen als horizontale Rang-Balken
+      Charts.renderSingleHorizontalBars("plot_single_currencies", singlePies.currencyPie, "%", 60);
+
+      // 3. Aktien-Regionen als horizontale Balken
+      Charts.renderSingleHorizontalBars("plot_single_equity_regions", singlePies.equityRegionsPie, "%", 110);
+
+      // 4. Aktien-Sektoren als der einzige, herausragende Donut-Chart!
       Charts.renderSingleDonutPie(
         "plot_single_equity_sectors",
         singlePies.equitySectorsPie,
         pConf.name,
         state.singleEquitySectorRegion === "Total" ? "Aktiensektoren" : state.singleEquitySectorRegion
       );
-      Charts.renderSingleDonutPie("plot_single_bond_regions", singlePies.bondRegionsPie, pConf.name, "Bond-Regionen");
-      Charts.renderSingleDonutPie(
-        "plot_single_bond_issuers",
-        singlePies.bondIssuerPie,
-        pConf.name,
-        state.singleBondIssuerRegion === "Total" ? "Bond-Sektoren" : state.singleBondIssuerRegion
-      );
-      Charts.renderSingleDonutPie(
-        "plot_single_currencies",
-        singlePies.currencyPie,
-        pConf.name,
-        state.singleCurrencyAssetClass === "Total" ? "Währungsmix" : `${state.singleCurrencyAssetClass}-Währungen`
-      );
+
+      // 5. Bond-Regionen als horizontale Balken
+      Charts.renderSingleHorizontalBars("plot_single_bond_regions", singlePies.bondRegionsPie, "%", 100);
+
+      // 6. Bond-Issuer-Types als strukturierte horizontale Balken
+      Charts.renderSingleHorizontalBars("plot_single_bond_issuers", singlePies.bondIssuerPie, "%", 150);
     }
 
     // 4. Risikotabelle rendern
