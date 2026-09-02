@@ -879,11 +879,12 @@
   }
 
   /**
-   * Rendert die vergleichende Portfolio-Kennzahlen-Tabelle (Portfolio A vs Portfolio B vs Delta)
+   * Rendert die vergleichenden Portfolio-Kennzahlen in zwei nebeneinanderliegenden Tabellen
    */
-  function renderPortfolioComparisonTable(elementId, summaryA, summaryB, concA, concB, nameA, nameB, nHoldingsA, nHoldingsB) {
-    const elem = document.getElementById(elementId);
-    if (!elem) return;
+  function renderPortfolioComparisonTables(elemLeftId, elemRightId, summaryA, summaryB, concA, concB, nameA, nameB, nHoldingsA, nHoldingsB, currDeltas = []) {
+    const elemLeft = document.getElementById(elemLeftId);
+    const elemRight = document.getElementById(elemRightId);
+    if (!elemLeft || !elemRight) return;
 
     const formatVal = (val, dec = 2, unit = "") => {
       if (val == null || isNaN(val)) return "-";
@@ -926,64 +927,74 @@
 
     const makeHeader = (title, icon, colorClass = "text-primary") => `
       <tr class="table-light">
-        <th colspan="4" class="ps-3 py-2 ${colorClass} fw-bold small">
+        <th colspan="4" class="ps-3 py-1 ${colorClass} fw-bold small">
           <i class="bi ${icon} me-1"></i> ${title}
         </th>
       </tr>
     `;
 
-    let html = `
+    const makeTableStart = () => `
       <div class="table-responsive">
-        <table class="table table-hover table-sm align-middle mb-0" style="font-size: 0.85rem;">
+        <table class="table table-hover table-sm align-middle mb-0" style="font-size: 0.84rem;">
           <thead class="table-light border-bottom">
             <tr>
-              <th class="ps-3" style="width: 40%;">Kennzahl / Segment</th>
-              <th class="text-end" style="width: 20%;">${nameA || "Portfolio A"}</th>
-              <th class="text-end" style="width: 20%;">${nameB || "Portfolio B"}</th>
-              <th class="text-end pe-3" style="width: 20%;">Differenz (Δ = A − B)</th>
+              <th class="ps-3" style="width: 44%;">Kennzahl / Segment</th>
+              <th class="text-end" style="width: 18%;">${nameA || "P1"}</th>
+              <th class="text-end" style="width: 18%;">${nameB || "P2"}</th>
+              <th class="text-end pe-3" style="width: 20%;">Δ (A − B)</th>
             </tr>
           </thead>
           <tbody>
     `;
 
-    // 1. Ertrag & Risiko
-    html += makeHeader("Ertrag & Risiko (p.a.)", "bi-graph-up-arrow", "text-primary");
-    html += makeRow("Erwartete Rendite", summaryA?.expected_return, summaryB?.expected_return, 2, "%");
-    html += makeRow("Erwartete Volatilität", summaryA?.expected_vol, summaryB?.expected_vol, 2, "%", true);
-    html += makeRow("Sharpe Ratio (rf = 0)", summaryA?.sharpe_ratio, summaryB?.sharpe_ratio, 2, "");
+    // 1. LINKE TABELLE: Risiko, Ertrag & Allokation
+    let htmlLeft = makeTableStart();
+    htmlLeft += makeHeader("Ertrag & Risiko (p.a.)", "bi-graph-up-arrow", "text-primary");
+    htmlLeft += makeRow("Erwartete Rendite", summaryA?.expected_return, summaryB?.expected_return, 2, "%");
+    htmlLeft += makeRow("Erwartete Volatilität", summaryA?.expected_vol, summaryB?.expected_vol, 2, "%", true);
+    htmlLeft += makeRow("Sharpe Ratio (rf = 0)", summaryA?.sharpe_ratio, summaryB?.sharpe_ratio, 2, "");
 
-    // 2. Diversifikation & Konzentration
-    html += makeHeader("Diversifikation & Konzentration", "bi-pie-chart", "text-secondary");
-    html += makeRow("Effektive Titelanzahl (N_eff)", concA?.n_eff, concB?.n_eff, 1, "");
-    html += makeRow("Herfindahl-Index (HHI)", concA?.hhi, concB?.hhi, 1, "", true);
-    html += makeRow("Gini-Koeffizient", concA?.gini_coefficient, concB?.gini_coefficient, 3, "", true);
-    html += makeRow("Top 10 Konzentration", concA?.top10_weight, concB?.top10_weight, 2, "%", true);
-    html += makeRow("Look-Through Positionen", nHoldingsA, nHoldingsB, 0, "");
+    htmlLeft += makeHeader("Diversifikation & Konzentration", "bi-pie-chart", "text-secondary");
+    htmlLeft += makeRow("Effektive Titel (N_eff)", concA?.n_eff, concB?.n_eff, 1, "");
+    htmlLeft += makeRow("Herfindahl-Index (HHI)", concA?.hhi, concB?.hhi, 1, "", true);
+    htmlLeft += makeRow("Gini-Koeffizient", concA?.gini_coefficient, concB?.gini_coefficient, 3, "", true);
+    htmlLeft += makeRow("Top 10 Konzentration", concA?.top10_weight, concB?.top10_weight, 2, "%", true);
+    htmlLeft += makeRow("Look-Through Titel", nHoldingsA, nHoldingsB, 0, "");
 
-    // 3. Aktien-Bewertung
-    html += makeHeader("Aktien-Bewertungskennzahlen (Look-Through)", "bi-currency-dollar", "text-primary");
-    html += makeRow("Aktienanteil am Portfolio", summaryA?.equity_weight_pct, summaryB?.equity_weight_pct, 2, "%");
-    html += makeRow("Dividendenrendite (gew.)", summaryA?.equity_weighted_div_yield, summaryB?.equity_weighted_div_yield, 2, "%");
-    html += makeRow("KGV (harmonisch gew.)", summaryA?.equity_weighted_pe, summaryB?.equity_weighted_pe, 1, "x");
-    html += makeRow("KBV (harmonisch gew.)", summaryA?.equity_weighted_pb, summaryB?.equity_weighted_pb, 2, "x");
+    htmlLeft += makeHeader("Asset-Allokation (Portfolioanteile)", "bi-layers", "text-dark");
+    htmlLeft += makeRow("Aktien", summaryA?.equity_weight_pct, summaryB?.equity_weight_pct, 2, "%");
+    htmlLeft += makeRow("Anleihen", summaryA?.bond_weight_pct, summaryB?.bond_weight_pct, 2, "%");
+    htmlLeft += makeRow("Real Estate", summaryA?.real_estate_weight_pct, summaryB?.real_estate_weight_pct, 2, "%");
+    htmlLeft += makeRow("Rohstoffe", summaryA?.commodity_weight_pct, summaryB?.commodity_weight_pct, 2, "%");
+    htmlLeft += makeRow("Cash", summaryA?.cash_weight_pct, summaryB?.cash_weight_pct, 2, "%");
+    htmlLeft += `</tbody></table></div>`;
+    elemLeft.innerHTML = htmlLeft;
 
-    // 4. Anleihen & Zinsrisiko
-    html += makeHeader("Anleihen & Zinsrisikokennzahlen", "bi-shield-check", "text-teal");
-    html += makeRow("Anleihenanteil am Portfolio", summaryA?.bond_weight_pct, summaryB?.bond_weight_pct, 2, "%");
-    html += makeRow("Yield to Maturity (YTM)", summaryA?.bond_weighted_ytm, summaryB?.bond_weighted_ytm, 2, "%");
-    html += makeRow("Modified Duration", summaryA?.bond_weighted_mod_duration, summaryB?.bond_weighted_mod_duration, 2, " J.");
-    html += makeRow("Durchschnittl. Restlaufzeit", summaryA?.bond_weighted_maturity_years, summaryB?.bond_weighted_maturity_years, 2, " J.");
+    // 2. RECHTE TABELLE: Segmente & Bewertung
+    let htmlRight = makeTableStart();
+    htmlRight += makeHeader("Aktien-Bewertung (Look-Through)", "bi-currency-dollar", "text-primary");
+    htmlRight += makeRow("Aktienanteil am Portfolio", summaryA?.equity_weight_pct, summaryB?.equity_weight_pct, 2, "%");
+    htmlRight += makeRow("Dividendenrendite (gew.)", summaryA?.equity_weighted_div_yield, summaryB?.equity_weighted_div_yield, 2, "%");
+    htmlRight += makeRow("KGV (harmonisch gew.)", summaryA?.equity_weighted_pe, summaryB?.equity_weighted_pe, 1, "x");
+    htmlRight += makeRow("KBV (harmonisch gew.)", summaryA?.equity_weighted_pb, summaryB?.equity_weighted_pb, 2, "x");
 
-    // 5. Asset-Allokation
-    html += makeHeader("Asset-Allokation (Portfolioanteile)", "bi-layers", "text-dark");
-    html += makeRow("Aktien", summaryA?.equity_weight_pct, summaryB?.equity_weight_pct, 2, "%");
-    html += makeRow("Anleihen", summaryA?.bond_weight_pct, summaryB?.bond_weight_pct, 2, "%");
-    html += makeRow("Real Estate", summaryA?.real_estate_weight_pct, summaryB?.real_estate_weight_pct, 2, "%");
-    html += makeRow("Rohstoffe", summaryA?.commodity_weight_pct, summaryB?.commodity_weight_pct, 2, "%");
-    html += makeRow("Cash", summaryA?.cash_weight_pct, summaryB?.cash_weight_pct, 2, "%");
+    htmlRight += makeHeader("Anleihen & Zinsrisiko", "bi-shield-check", "text-teal");
+    htmlRight += makeRow("Anleihenanteil am Portfolio", summaryA?.bond_weight_pct, summaryB?.bond_weight_pct, 2, "%");
+    htmlRight += makeRow("Yield to Maturity (YTM)", summaryA?.bond_weighted_ytm, summaryB?.bond_weighted_ytm, 2, "%");
+    htmlRight += makeRow("Modified Duration", summaryA?.bond_weighted_mod_duration, summaryB?.bond_weighted_mod_duration, 2, " J.");
+    htmlRight += makeRow("Durchschnittl. Restlaufzeit", summaryA?.bond_weighted_maturity_years, summaryB?.bond_weighted_maturity_years, 2, " J.");
 
-    html += `</tbody></table></div>`;
-    elem.innerHTML = html;
+    htmlRight += makeHeader("Währungsmix (Top Währungen)", "bi-cash-stack", "text-warning");
+    const topCurrs = (currDeltas || []).slice(0, 5);
+    if (topCurrs.length > 0) {
+      topCurrs.forEach(c => {
+        htmlRight += makeRow(c.label, c.valA, c.valB, 2, "%");
+      });
+    } else {
+      htmlRight += `<tr><td colspan="4" class="text-center text-muted py-2 small">Keine Währungsdifferenzen</td></tr>`;
+    }
+    htmlRight += `</tbody></table></div>`;
+    elemRight.innerHTML = htmlRight;
   }
 
   const Tables = {
@@ -1000,7 +1011,7 @@
     renderUniverseSummaryTable,
     renderBondRegionIssuerTable,
     renderSinglePortfolioRiskTable,
-    renderPortfolioComparisonTable
+    renderPortfolioComparisonTables
   };
 
   if (typeof module !== 'undefined' && module.exports) {

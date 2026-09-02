@@ -318,8 +318,9 @@
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
-      margin: { t: 20, r: 20, l: 150, b: 40 },
-      xaxis: { title: `Differenz (${nameA} [+] vs. ${nameB} [−]) in %-Pkt.`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
+      showlegend: false,
+      margin: { t: 15, r: 20, l: 150, b: 20 },
+      xaxis: { title: "", zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
       yaxis: { autorange: "reversed" },
       shapes: [{
         type: "line",
@@ -390,8 +391,9 @@
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
-      margin: { t: 20, r: 20, l: 130, b: 40 },
-      xaxis: { title: `Differenz (${nameA} [+] vs. ${nameB} [−]) in %-Pkt.`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
+      showlegend: false,
+      margin: { t: 15, r: 20, l: 130, b: 20 },
+      xaxis: { title: "", zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
       yaxis: { autorange: "reversed" },
       shapes: [{
         type: "line",
@@ -461,8 +463,9 @@
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
-      margin: { t: 20, r: 20, l: 110, b: 40 },
-      xaxis: { title: `Differenz (${nameA} [+] vs. ${nameB} [−]) in %-Pkt.`, zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
+      showlegend: false,
+      margin: { t: 15, r: 20, l: 110, b: 20 },
+      xaxis: { title: "", zerolinecolor: "#475569", gridcolor: "#E2E8F0" },
       yaxis: { autorange: "reversed" },
       shapes: [{
         type: "line",
@@ -733,9 +736,10 @@
 
     const layout = {
       ...DEFAULT_PLOT_LAYOUT,
-      margin: { t: 15, r: 25, l: marginL, b: 35 },
+      showlegend: false,
+      margin: { t: 10, r: 25, l: marginL, b: 15 },
       xaxis: {
-        title: `Δ (${nameA} [+] vs. ${nameB} [−]) in ${unit}`,
+        title: "",
         zerolinecolor: "#334155",
         zerolinewidth: 2,
         gridcolor: "#E2E8F0",

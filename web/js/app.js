@@ -518,7 +518,19 @@
     const nHoldingsA = calcPorts[state.comparePortA]?.holdings?.length || 0;
     const nHoldingsB = calcPorts[state.comparePortB]?.holdings?.length || 0;
 
-    Tables.renderPortfolioComparisonTable("table_compare_metrics", sumA, sumB, cA, cB, nameA, nameB, nHoldingsA, nHoldingsB);
+    Tables.renderPortfolioComparisonTables(
+      "table_compare_metrics_left",
+      "table_compare_metrics_right",
+      sumA,
+      sumB,
+      cA,
+      cB,
+      nameA,
+      nameB,
+      nHoldingsA,
+      nHoldingsB,
+      comp?.currencyDeltas
+    );
   }
 
   function renderDashboardKpis(summaryMetrics, concMetrics) {
