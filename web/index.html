@@ -41,6 +41,9 @@
             <a class="nav-link active" href="#" data-tab="tab_dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_dashboard_single"><i class="bi bi-pie-chart-fill me-1"></i> Dashboard Single</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="#" data-tab="tab_allocation"><i class="bi bi-globe me-1"></i> Allokation & Währungen</a>
           </li>
           <li class="nav-item">
@@ -316,6 +319,234 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 1B: 🎯 DASHBOARD SINGLE (EINZELPORTFOLIO-FOKUS) -->
+        <!-- =================================================================== -->
+        <div id="tab_dashboard_single" class="tab-content-panel d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+            <div>
+              <h4 class="mb-0 fw-bold text-dark"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Dashboard Single: <span id="single-dashboard-port-name" class="text-primary">Portfolio 1</span></h4>
+              <p class="text-muted small mb-0">Detaillierte Einzelportfolio-Analyse mit interaktiven Sektor-, Regionen- und Währungs-Pies inklusive Drilldowns.</p>
+            </div>
+            <div>
+              <span id="single-dashboard-active-badge" class="badge bg-primary px-3 py-2 fs-6">Aktiv: Portfolio 1</span>
+            </div>
+          </div>
+
+          <!-- KPI Cards Section (Gleiche Infoboxen wie im Dashboard) -->
+          <div class="row g-2 mb-3 align-items-stretch">
+            
+            <!-- 1. Ganz links: Portfolio Risk/Return (1 Spalte, 3 Zeilen) -->
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="card h-100 p-2 mb-0 shadow-sm border-primary-subtle d-flex flex-column justify-content-between">
+                <div class="d-flex align-items-center justify-content-between px-2 py-1 border-bottom">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white p-1 rounded"><i class="bi bi-graph-up"></i></span>
+                    <span class="small fw-semibold text-primary">Erw. Rendite (p.a.)</span>
+                  </div>
+                  <span class="fw-bold fs-6 text-primary font-monospace" id="single-kpi-val-exp-ret">-</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between px-2 py-1 border-bottom">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger-subtle text-danger p-1 rounded"><i class="bi bi-activity"></i></span>
+                    <span class="small fw-semibold text-muted">Erw. Vola (p.a.)</span>
+                  </div>
+                  <span class="fw-bold fs-6 text-dark font-monospace" id="single-kpi-val-exp-vol">-</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between px-2 py-1">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success p-1 rounded"><i class="bi bi-award"></i></span>
+                    <span class="small fw-semibold text-success">Sharpe Ratio</span>
+                  </div>
+                  <span class="fw-bold fs-6 text-success font-monospace" id="single-kpi-val-sharpe">-</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Daneben: Anteile Assetklassen (2x2 Block) -->
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="card h-100 p-2 mb-0 shadow-sm">
+                <div class="row g-2 h-100">
+                  <div class="col-6">
+                    <div class="p-2 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">Aktien</div>
+                      <div class="fs-6 fw-bold text-primary" id="single-kpi-val-equity">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #F0FDFA;">
+                      <div class="text-uppercase" style="font-size: 0.7rem; font-weight: 600; color: #0D9488;">Anleihen</div>
+                      <div class="fs-6 fw-bold" style="color: #0D9488;" id="single-kpi-val-bonds">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #FDF2F0;">
+                      <div class="text-uppercase" style="font-size: 0.7rem; font-weight: 600; color: #8C564B;">Real Estate</div>
+                      <div class="fs-6 fw-bold" style="color: #8C564B;" id="single-kpi-val-re">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #FFFBEB;">
+                      <div class="text-uppercase" style="font-size: 0.7rem; font-weight: 600; color: #D97706;">Rohstoffe</div>
+                      <div class="fs-6 fw-bold" style="color: #D97706;" id="single-kpi-val-cmd">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Bewertung & Anleihenkennzahlen (2x2 Block) -->
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card h-100 p-2 mb-0 shadow-sm">
+                <div class="row g-2 h-100">
+                  <div class="col-6">
+                    <div class="p-2 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">Div. Rendite</div>
+                      <div class="fs-6 fw-bold text-primary" id="single-kpi-val-div">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded bg-light border text-center h-100 d-flex flex-column justify-content-center">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">KGV (Harmon.)</div>
+                      <div class="fs-6 fw-bold text-dark" id="single-kpi-val-pe">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #F0FDFA;">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">YTM (Bonds)</div>
+                      <div class="fs-6 fw-bold text-teal" style="color: #0D9488;" id="single-kpi-val-ytm">-</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-2 rounded border text-center h-100 d-flex flex-column justify-content-center" style="background-color: #F0FDF4;">
+                      <div class="text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 600;">Mod. Duration</div>
+                      <div class="fs-6 fw-bold" style="color: #16A34A;" id="single-kpi-val-dur">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Ganz rechts: N_eff & Diversifikation -->
+            <div class="col-12 col-md-6 col-xl-2">
+              <div class="card h-100 p-2 mb-0 shadow-sm border-secondary-subtle d-flex flex-column justify-content-center text-center">
+                <div class="text-uppercase text-muted small" style="font-size: 0.75rem; font-weight: 600;">Effektive Titel</div>
+                <div class="fs-3 fw-bold text-primary font-monospace my-1" id="single-kpi-val-neff">-</div>
+                <div class="text-muted" style="font-size: 0.7rem;">N_eff Diversifikation</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pie Charts Reihe 1: Aktien & Assetklassen -->
+          <div class="row g-3 mb-3">
+            <!-- 1. Assetklassen-Mix -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold">
+                  <i class="bi bi-pie-chart text-primary me-1"></i> Assetklassen-Mix
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_single_asset_classes" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Aktien nach Regionen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold">
+                  <i class="bi bi-globe text-primary me-1"></i> Aktien nach Regionen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_single_equity_regions" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Aktien nach Sektoren (mit Region-Drilldown) -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold"><i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren</span>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
+                    <select id="select_single_equity_sector_region" class="form-select form-select-sm" style="width: 130px; font-size: 0.78rem;">
+                      <option value="Total">Total</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_single_equity_sectors" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pie Charts Reihe 2: Bonds & Währungen -->
+          <div class="row g-3 mb-3">
+            <!-- 4. Anleihen nach Regionen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold">
+                  <i class="bi bi-globe2 text-teal me-1" style="color:#0D9488;"></i> Anleihen nach Regionen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_single_bond_regions" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. Anleihen nach Sektoren / Issuer-Types (mit Region-Drilldown) -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold"><i class="bi bi-shield-shaded text-teal me-1" style="color:#0D9488;"></i> Anleihen-Sektoren</span>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
+                    <select id="select_single_bond_issuer_region" class="form-select form-select-sm" style="width: 130px; font-size: 0.78rem;">
+                      <option value="Total">Total</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_single_bond_issuers" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. Währungsmix (mit Anlageklassen-Drilldown) -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold"><i class="bi bi-cash-stack text-warning me-1"></i> Währungsmix</span>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted small" style="font-size:0.75rem;">Filter:</span>
+                    <select id="select_single_currency_asset_class" class="form-select form-select-sm" style="width: 110px; font-size: 0.78rem;">
+                      <option value="Total" selected>Total</option>
+                      <option value="Aktien">Aktien</option>
+                      <option value="Bonds">Bonds</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_single_currencies" style="height: 320px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabelle mit Risikokennzahlen zum Gesamtportfolio -->
+          <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold bg-white border-bottom">
+              <i class="bi bi-shield-check text-primary me-1"></i> Risikoprofil, Bewertung & Diversifikations-Kennzahlen zum Gesamtportfolio
+            </div>
+            <div class="card-body p-0">
+              <div id="table_single_risk_metrics"></div>
+            </div>
+          </div>
+
         </div>
 
         <!-- =================================================================== -->

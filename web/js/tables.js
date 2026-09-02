@@ -759,6 +759,125 @@
     elem.innerHTML = html;
   }
 
+  /**
+   * Rendert die Gesamtportfolio-Risikotabelle im "Dashboard Single"
+   */
+  function renderSinglePortfolioRiskTable(elementId, pSum, pConc, pName, nHoldings) {
+    const elem = document.getElementById(elementId);
+    if (!elem) return;
+
+    if (!pSum || !pSum.is_active) {
+      elem.innerHTML = '<div class="text-center text-muted py-3 small">Portfolio ist inaktiv oder enthält keine Daten.</div>';
+      return;
+    }
+
+    const html = `
+      <div class="row g-3 p-3">
+        <!-- Spalte 1: Risiko & Ertrag -->
+        <div class="col-md-6 col-lg-3">
+          <div class="border rounded p-2 bg-light h-100">
+            <div class="fw-bold text-primary small border-bottom pb-1 mb-2 d-flex align-items-center gap-1">
+              <i class="bi bi-graph-up-arrow"></i> Ertrag & Volatilität
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Erwartete Rendite (p.a.)</span>
+              <span class="fw-bold font-monospace text-primary">${formatNum(pSum.expected_return, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Erwartete Vola (p.a.)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.expected_vol, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Sharpe Ratio (rf = 0)</span>
+              <span class="fw-bold font-monospace text-success">${formatNum(pSum.sharpe_ratio, 2, "")}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spalte 2: Konzentration & Diversifikation -->
+        <div class="col-md-6 col-lg-3">
+          <div class="border rounded p-2 bg-light h-100">
+            <div class="fw-bold text-secondary small border-bottom pb-1 mb-2 d-flex align-items-center gap-1">
+              <i class="bi bi-pie-chart"></i> Diversifikation & Titel
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Effektive Titel (N_eff)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pConc?.n_eff, 1, "")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Herfindahl-Index (HHI)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pConc?.hhi, 1, "")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Gini-Koeffizient</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pConc?.gini_coefficient, 3, "")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Top 10 Konzentration</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pConc?.top10_weight, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Look-Through Positionen</span>
+              <span class="fw-bold font-monospace text-dark">${nHoldings ? nHoldings.toLocaleString('de-CH') : "-"}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spalte 3: Aktienbewertung -->
+        <div class="col-md-6 col-lg-3">
+          <div class="border rounded p-2 bg-light h-100">
+            <div class="fw-bold text-primary small border-bottom pb-1 mb-2 d-flex align-items-center gap-1">
+              <i class="bi bi-currency-dollar"></i> Aktien-Bewertung
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Aktienanteil am Portfolio</span>
+              <span class="fw-bold font-monospace text-primary">${formatNum(pSum.equity_weight_pct, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Dividendenrendite (gew.)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.equity_weighted_div_yield, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">KGV (harmonisch gew.)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.equity_weighted_pe, 1, "x")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">KBV (harmonisch gew.)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.equity_weighted_pb, 2, "x")}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spalte 4: Zins & Anleihen -->
+        <div class="col-md-6 col-lg-3">
+          <div class="border rounded p-2 bg-light h-100">
+            <div class="fw-bold small border-bottom pb-1 mb-2 d-flex align-items-center gap-1" style="color: #0D9488;">
+              <i class="bi bi-shield-check"></i> Anleihen & Zinsrisiko
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Bondanteil am Portfolio</span>
+              <span class="fw-bold font-monospace" style="color: #0D9488;">${formatNum(pSum.bond_weight_pct, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Yield to Maturity (YTM)</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.bond_weighted_ytm, 2, "%")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom small">
+              <span class="text-muted">Modified Duration</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.bond_weighted_mod_duration, 2, " J.")}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 small">
+              <span class="text-muted">Durchschnittl. Restlaufzeit</span>
+              <span class="fw-bold font-monospace text-dark">${formatNum(pSum.bond_weighted_maturity_years, 2, " J.")}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    elem.innerHTML = html;
+  }
+
   const Tables = {
     renderDashboardTop10Table,
     renderMultiAssetSummaryTable,
@@ -771,7 +890,8 @@
     renderFullLookthroughTable,
     renderConcentrationFullTable,
     renderUniverseSummaryTable,
-    renderBondRegionIssuerTable
+    renderBondRegionIssuerTable,
+    renderSinglePortfolioRiskTable
   };
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -24,6 +24,9 @@
     selectedFullTableAssetClass: "all",
     selectedBondBreakdownPort: "portfolio_1",
     fullTableSearch: "",
+    singleEquitySectorRegion: "Total",
+    singleBondIssuerRegion: "Total",
+    singleCurrencyAssetClass: "Total",
     saveStatus: "Gespeichert"
   };
 
@@ -277,6 +280,8 @@
       Charts.renderRegionDeltaPlot("plot_dash_region_delta", regionData, state.selectedDashRegionDeltaPair, state.portfolios);
       Tables.renderDashboardTop10Table("table_dash_top10", topHoldings.combinedTop, state.portfolios);
       Tables.renderMultiAssetSummaryTable("table_dash_multi_asset", assetCurrMetrics.summaryMetrics, state.portfolios);
+    } else if (state.activeTab === "tab_dashboard_single") {
+      renderSingleDashboardTab(analyticsResults);
     } else if (state.activeTab === "tab_allocation") {
       Charts.renderAssetAllocationPlot("plot_asset_allocation", assetCurrMetrics.assetAllocation, state.portfolios);
       Charts.renderOverallCurrencyPlot("plot_overall_currency", assetCurrMetrics.overallCurrencyCompare, state.portfolios);
@@ -333,6 +338,107 @@
     } else if (state.activeTab === "tab_universe") {
       Tables.renderUniverseSummaryTable("table_etf_meta_summary", state.data.etf_summary);
     }
+  }
+
+  function renderSingleDashboardTab(analyticsResults) {
+    const { calcPorts, concMetrics, assetCurrMetrics } = analyticsResults;
+    const pKey = state.activeSidebarPort;
+    const pConf = state.portfolios[pKey];
+    if (!pConf) return;
+
+    // 1. Titel & Badge aktualisieren
+    const titleElem = document.getElementById('single-dashboard-port-name');
+    if (titleElem) titleElem.innerText = pConf.name || pKey;
+    const badgeElem = document.getElementById('single-dashboard-active-badge');
+    if (badgeElem) badgeElem.innerText = `Aktiv: ${pConf.name || pKey}`;
+
+    // 2. KPI Infoboxen aktualisieren
+    const pSum = assetCurrMetrics.summaryMetrics.find(m => m.portfolio_key === pKey) || {};
+    const pConc = concMetrics.find(m => m.portfolio_key === pKey) || {};
+
+    const setVal = (id, text) => {
+      const elem = document.getElementById(id);
+      if (elem) elem.innerText = text;
+    };
+
+    setVal('single-kpi-val-exp-ret', (pSum.is_active && pSum.expected_return != null) ? `${pSum.expected_return.toFixed(2)}%` : '-');
+    setVal('single-kpi-val-exp-vol', (pSum.is_active && pSum.expected_vol != null) ? `${pSum.expected_vol.toFixed(2)}%` : '-');
+    setVal('single-kpi-val-sharpe', (pSum.is_active && pSum.sharpe_ratio != null) ? `${pSum.sharpe_ratio.toFixed(2)}` : '-');
+    setVal('single-kpi-val-equity', pSum.is_active ? `${pSum.equity_weight_pct.toFixed(1)}%` : '-');
+    setVal('single-kpi-val-bonds', pSum.is_active ? `${pSum.bond_weight_pct.toFixed(1)}%` : '-');
+    setVal('single-kpi-val-re', pSum.is_active ? `${(pSum.real_estate_weight_pct || 0).toFixed(1)}%` : '-');
+    setVal('single-kpi-val-cmd', pSum.is_active ? `${(pSum.commodity_weight_pct || 0).toFixed(1)}%` : '-');
+    setVal('single-kpi-val-div', (pSum.is_active && pSum.equity_weighted_div_yield) ? `${pSum.equity_weighted_div_yield.toFixed(2)}%` : '-');
+    setVal('single-kpi-val-pe', (pSum.is_active && pSum.equity_weighted_pe) ? `${pSum.equity_weighted_pe.toFixed(1)}x` : '-');
+    setVal('single-kpi-val-ytm', (pSum.is_active && pSum.bond_weighted_ytm) ? `${pSum.bond_weighted_ytm.toFixed(2)}%` : '-');
+    setVal('single-kpi-val-dur', (pSum.is_active && pSum.bond_weighted_mod_duration) ? `${pSum.bond_weighted_mod_duration.toFixed(1)} J.` : '-');
+    setVal('single-kpi-val-neff', (pConc.is_active && pConc.n_eff) ? `${pConc.n_eff}` : '-');
+
+    // 3. Pies berechnen
+    const singlePies = Analytics.calculateSinglePortfolioPies(
+      pKey,
+      state.portfolios,
+      state.data.holdings,
+      state.data.tickers,
+      {
+        equitySectorRegion: state.singleEquitySectorRegion || "Total",
+        bondIssuerRegion: state.singleBondIssuerRegion || "Total",
+        currencyAssetClass: state.singleCurrencyAssetClass || "Total"
+      }
+    );
+
+    if (singlePies) {
+      // Dropdown Optionen aktualisieren
+      const eqSelect = document.getElementById('select_single_equity_sector_region');
+      if (eqSelect) {
+        let optHtml = '';
+        (singlePies.availableEquityRegions || ["Total"]).forEach(reg => {
+          optHtml += `<option value="${reg}" ${state.singleEquitySectorRegion === reg ? 'selected' : ''}>${reg}</option>`;
+        });
+        eqSelect.innerHTML = optHtml;
+      }
+
+      const bondSelect = document.getElementById('select_single_bond_issuer_region');
+      if (bondSelect) {
+        let optHtml = '';
+        (singlePies.availableBondRegions || ["Total"]).forEach(reg => {
+          optHtml += `<option value="${reg}" ${state.singleBondIssuerRegion === reg ? 'selected' : ''}>${reg}</option>`;
+        });
+        bondSelect.innerHTML = optHtml;
+      }
+
+      const currSelect = document.getElementById('select_single_currency_asset_class');
+      if (currSelect) {
+        currSelect.value = state.singleCurrencyAssetClass || "Total";
+      }
+
+      // Charts rendern
+      Charts.renderSingleDonutPie("plot_single_asset_classes", singlePies.assetClassesPie, pConf.name, "Assetklassen");
+      Charts.renderSingleDonutPie("plot_single_equity_regions", singlePies.equityRegionsPie, pConf.name, "Aktien-Regionen");
+      Charts.renderSingleDonutPie(
+        "plot_single_equity_sectors",
+        singlePies.equitySectorsPie,
+        pConf.name,
+        state.singleEquitySectorRegion === "Total" ? "Aktiensektoren" : state.singleEquitySectorRegion
+      );
+      Charts.renderSingleDonutPie("plot_single_bond_regions", singlePies.bondRegionsPie, pConf.name, "Bond-Regionen");
+      Charts.renderSingleDonutPie(
+        "plot_single_bond_issuers",
+        singlePies.bondIssuerPie,
+        pConf.name,
+        state.singleBondIssuerRegion === "Total" ? "Bond-Sektoren" : state.singleBondIssuerRegion
+      );
+      Charts.renderSingleDonutPie(
+        "plot_single_currencies",
+        singlePies.currencyPie,
+        pConf.name,
+        state.singleCurrencyAssetClass === "Total" ? "Währungsmix" : `${state.singleCurrencyAssetClass}-Währungen`
+      );
+    }
+
+    // 4. Risikotabelle rendern
+    const nHoldings = calcPorts[pKey]?.holdings?.length || 0;
+    Tables.renderSinglePortfolioRiskTable("table_single_risk_metrics", pSum, pConc, pConf.name, nHoldings);
   }
 
   function renderDashboardKpis(summaryMetrics, concMetrics) {
@@ -758,6 +864,22 @@
 
     document.getElementById('input-full-table-search')?.addEventListener('input', (e) => {
       state.fullTableSearch = e.target.value;
+      updateApp();
+    });
+
+    // Single Dashboard Drilldown Dropdowns
+    document.getElementById('select_single_equity_sector_region')?.addEventListener('change', (e) => {
+      state.singleEquitySectorRegion = e.target.value;
+      updateApp();
+    });
+
+    document.getElementById('select_single_bond_issuer_region')?.addEventListener('change', (e) => {
+      state.singleBondIssuerRegion = e.target.value;
+      updateApp();
+    });
+
+    document.getElementById('select_single_currency_asset_class')?.addEventListener('change', (e) => {
+      state.singleCurrencyAssetClass = e.target.value;
       updateApp();
     });
   }

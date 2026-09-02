@@ -554,8 +554,55 @@
     Plotly.react(elem, traces, layout, { responsive: true, displayModeBar: false });
   }
 
+  /**
+   * Rendert ein einheitliches Donut-Pie-Diagramm für das "Dashboard Single"
+   */
+  function renderSingleDonutPie(elementId, items, centerTitle, centerSubtitle, hoverUnit = "%") {
+    const elem = document.getElementById(elementId);
+    if (!elem || typeof Plotly === 'undefined') return;
+
+    if (!items || items.length === 0) {
+      Plotly.newPlot(elem, [], {
+        ...DEFAULT_PLOT_LAYOUT,
+        annotations: [{ text: "Keine Daten verfügbar", showarrow: false, font: { size: 13, color: "#64748B" } }]
+      }, { responsive: true, displayModeBar: false });
+      return;
+    }
+
+    const trace = {
+      labels: items.map(d => d.label),
+      values: items.map(d => d.value),
+      type: "pie",
+      hole: 0.52,
+      marker: {
+        colors: items.map(d => d.color || "#94A3B8")
+      },
+      textinfo: "label+percent",
+      textposition: "inside",
+      insidetextorientation: "radial",
+      hoverinfo: "label+value+percent",
+      hovertemplate: `<b>%{label}</b><br>Gewicht: %{value:.2f}${hoverUnit}<br>Anteil: %{percent}<extra></extra>`
+    };
+
+    const layout = {
+      ...DEFAULT_PLOT_LAYOUT,
+      showlegend: false,
+      margin: { t: 15, r: 15, l: 15, b: 15 },
+      annotations: [
+        {
+          text: `<b>${centerTitle}</b><br><span style="font-size:11px;color:#64748B;">${centerSubtitle}</span>`,
+          showarrow: false,
+          font: { size: 13, color: "#1E293B" }
+        }
+      ]
+    };
+
+    Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
+  }
+
   const Charts = {
     renderDashboardSectors,
+    renderSingleDonutPie,
     renderAssetAllocationPlot,
     renderAssetDeltaPlot,
     renderOverallCurrencyPlot,

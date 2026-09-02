@@ -1072,6 +1072,265 @@
     };
   }
 
+  const ISSUER_TYPE_COLORS = {
+    "SOV": "#1E40AF",
+    "FIN": "#0D9488",
+    "CORP": "#D97706",
+    "AGCY": "#7C3AED",
+    "SUPR": "#059669",
+    "SSOV": "#0284C7",
+    "Andere": "#94A3B8"
+  };
+
+  const ISSUER_TYPE_LABELS = {
+    "SOV": "Staatsanleihen (SOV)",
+    "FIN": "Finanzsektor (FIN)",
+    "CORP": "Unternehmensanleihen (CORP)",
+    "AGCY": "Agencies / Behörden (AGCY)",
+    "SUPR": "Supranational (SUPR)",
+    "SSOV": "Sub-Sovereign (SSOV)",
+    "Andere": "Andere"
+  };
+
+  /**
+   * Berechnet alle Daten für die 6 Donut-Pie-Charts des "Dashboard Single"
+   */
+  function calculateSinglePortfolioPies(activePortKey, portfoliosConfig, cleanHoldings, tickersData, options = {}) {
+    const pConf = portfoliosConfig[activePortKey];
+    if (!pConf || !pConf.enabled || !pConf.weights) {
+      return null;
+    }
+
+    const {
+      equitySectorRegion = "Total",
+      bondIssuerRegion = "Total",
+      currencyAssetClass = "Total"
+    } = options;
+
+    const weights = pConf.weights;
+    const tickerMap = new Map((tickersData || []).map(t => [t.ric, t]));
+
+    // 1. Normalisierte ETF-Gewichte im Portfolio berechnen
+    let totalRawWeight = 0;
+    for (const [ric, w] of Object.entries(weights)) {
+      const val = Number(w) || 0;
+      if (val > 0) totalRawWeight += val;
+    }
+
+    const normEtfWeights = {};
+    if (totalRawWeight > 0) {
+      for (const [ric, w] of Object.entries(weights)) {
+        normEtfWeights[ric] = (Number(w) / totalRawWeight) * 100;
+      }
+    }
+
+    // 2. Assetklassen-Mix
+    const assetTotals = {
+      "Aktien": 0,
+      "Bonds": 0,
+      "Real Estate": 0,
+      "Rohstoffe": 0,
+      "Cash": 0
+    };
+
+    for (const [ric, portWeight] of Object.entries(normEtfWeights)) {
+      const meta = tickerMap.get(ric);
+      const aType = meta?.asset_type || "Aktien";
+      if (assetTotals[aType] != null) {
+        assetTotals[aType] += portWeight;
+      } else {
+        assetTotals["Aktien"] += portWeight;
+      }
+    }
+
+    const assetClassesPie = Object.entries(assetTotals)
+      .filter(([_, val]) => val > 0.01)
+      .map(([label, val]) => ({
+        label,
+        value: Number(val.toFixed(2)),
+        color: ASSET_TYPE_COLORS[label] || "#64748B"
+      }));
+
+    // 3. Look-Through Holdings für Aktien sammeln
+    const equityHoldings = [];
+    let totalEquityWeight = 0;
+
+    for (let i = 0; i < (cleanHoldings || []).length; i++) {
+      const h = cleanHoldings[i];
+      if (h.asset_type !== "Aktien") continue;
+      const pw = normEtfWeights[h.etf_ric];
+      if (!pw || pw <= 0) continue;
+      const baseW = h.weight_norm ?? h.weight_raw ?? 0;
+      if (baseW <= 0) continue;
+      const effW = baseW * (pw / 100);
+      totalEquityWeight += effW;
+      const tInfo = tickerMap.get(h.etf_ric);
+      const region = tInfo?.region || h.etf_region || "Global";
+
+      equityHoldings.push({
+        holding_ric: h.holding_ric,
+        holding_name: h.holding_name,
+        region,
+        gics_sector: h.gics_sector,
+        currency: h.currency,
+        effWeight: effW
+      });
+    }
+
+    // 4. Aktien-Regionen Pie
+    const eqRegionMap = {};
+    for (const h of equityHoldings) {
+      eqRegionMap[h.region] = (eqRegionMap[h.region] || 0) + h.effWeight;
+    }
+
+    const availableEquityRegions = ["Total", ...Object.keys(eqRegionMap).sort()];
+
+    const equityRegionsPie = Object.entries(eqRegionMap)
+      .filter(([_, w]) => totalEquityWeight > 0 && (w / totalEquityWeight) * 100 > 0.01)
+      .map(([label, w]) => ({
+        label,
+        value: Number(((w / totalEquityWeight) * 100).toFixed(2)),
+        color: REGION_COLORS[label] || "#64748B"
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // 5. Aktien-Sektoren Pie (mit Drilldown nach Region)
+    let filteredEquityHoldings = equityHoldings;
+    if (equitySectorRegion && equitySectorRegion !== "Total") {
+      filteredEquityHoldings = equityHoldings.filter(h => h.region === equitySectorRegion);
+    }
+
+    const filteredEqWeight = filteredEquityHoldings.reduce((sum, h) => sum + h.effWeight, 0);
+    const eqSectorMap = {};
+    for (const h of filteredEquityHoldings) {
+      if (h.gics_sector) {
+        eqSectorMap[h.gics_sector] = (eqSectorMap[h.gics_sector] || 0) + h.effWeight;
+      }
+    }
+
+    const equitySectorsPie = Object.entries(eqSectorMap)
+      .filter(([_, w]) => filteredEqWeight > 0 && (w / filteredEqWeight) * 100 > 0.01)
+      .map(([label, w]) => ({
+        label,
+        value: Number(((w / filteredEqWeight) * 100).toFixed(2)),
+        color: GICS_SECTOR_COLORS[label] || "#64748B"
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // 6. Bond-Breakdown berechnen
+    const bondBreakdown = calculateBondRegionIssuerBreakdown(activePortKey, portfoliosConfig, cleanHoldings, tickersData);
+    const availableBondRegions = ["Total"];
+    if (bondBreakdown && bondBreakdown.matrix) {
+      bondBreakdown.matrix.forEach(r => {
+        if (!availableBondRegions.includes(r.region)) availableBondRegions.push(r.region);
+      });
+    }
+
+    // Bond-Regionen Pie
+    const bondRegionsPie = (bondBreakdown?.matrix || [])
+      .filter(r => (r.total || 0) > 0.01)
+      .map(r => ({
+        label: r.region,
+        value: Number((r.total || 0).toFixed(2)),
+        color: REGION_COLORS[r.region] || (r.region === "EM HC" ? "#DC2626" : r.region === "EM LC" ? "#EA580C" : "#64748B")
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // 7. Bond-Sektoren / Issuer-Types Pie (mit Drilldown nach Region)
+    let bondIssuerPie = [];
+    if (bondBreakdown && bondBreakdown.issuerCols) {
+      let targetRow = bondBreakdown.totalRow;
+      if (bondIssuerRegion && bondIssuerRegion !== "Total") {
+        targetRow = bondBreakdown.matrix.find(r => r.region === bondIssuerRegion);
+      }
+
+      if (targetRow) {
+        const regionFiTotal = targetRow.total || 1;
+        bondIssuerPie = bondBreakdown.issuerCols
+          .map(col => {
+            const val = Number(targetRow[col]) || 0;
+            // Wenn region-spezifisch, auf 100% dieser Region skalieren
+            const pct = bondIssuerRegion === "Total" ? val : (val / regionFiTotal) * 100;
+            return {
+              label: ISSUER_TYPE_LABELS[col] || col,
+              rawKey: col,
+              value: Number(pct.toFixed(2)),
+              color: ISSUER_TYPE_COLORS[col] || "#64748B"
+            };
+          })
+          .filter(d => d.value > 0.01)
+          .sort((a, b) => b.value - a.value);
+      }
+    }
+
+    // 8. Währungsmix Pie (mit Drilldown nach Anlageklasse)
+    const currencyWeights = {};
+    let currencyTotalWeight = 0;
+
+    for (let i = 0; i < (cleanHoldings || []).length; i++) {
+      const h = cleanHoldings[i];
+      if (currencyAssetClass === "Aktien" && h.asset_type !== "Aktien") continue;
+      if (currencyAssetClass === "Bonds" && h.asset_type !== "Bonds") continue;
+
+      const pw = normEtfWeights[h.etf_ric];
+      if (!pw || pw <= 0) continue;
+      const baseW = h.weight_norm ?? h.weight_raw ?? 0;
+      if (baseW <= 0) continue;
+      const effW = baseW * (pw / 100);
+
+      const curr = h.currency || "CHF";
+      currencyWeights[curr] = (currencyWeights[curr] || 0) + effW;
+      currencyTotalWeight += effW;
+    }
+
+    let currencyPie = [];
+    if (currencyTotalWeight > 0) {
+      const sortedCurrs = Object.entries(currencyWeights)
+        .map(([curr, w]) => ({
+          currency: curr,
+          pct: (w / currencyTotalWeight) * 100
+        }))
+        .sort((a, b) => b.pct - a.pct);
+
+      const top7 = sortedCurrs.slice(0, 7);
+      const rest = sortedCurrs.slice(7);
+
+      top7.forEach(c => {
+        currencyPie.push({
+          label: c.currency,
+          value: Number(c.pct.toFixed(2)),
+          color: CURRENCY_COLORS[c.currency] || "#64748B"
+        });
+      });
+
+      if (rest.length > 0) {
+        const restSum = rest.reduce((s, c) => s + c.pct, 0);
+        if (restSum > 0.01) {
+          currencyPie.push({
+            label: "Übrige",
+            value: Number(restSum.toFixed(2)),
+            color: "#94A3B8"
+          });
+        }
+      }
+    }
+
+    return {
+      portfolioName: pConf.name,
+      portfolioKey: activePortKey,
+      assetClassesPie,
+      equityRegionsPie,
+      equitySectorsPie,
+      bondRegionsPie,
+      bondIssuerPie,
+      currencyPie,
+      availableEquityRegions,
+      availableBondRegions,
+      totalEquityWeight: Number(totalEquityWeight.toFixed(2)),
+      totalFiWeight: Number((bondBreakdown?.totalFiWeight || 0).toFixed(2))
+    };
+  }
+
   const Analytics = {
     GICS_11_SECTORS,
     GICS_SECTOR_COLORS,
@@ -1079,6 +1338,8 @@
     REGIONS_LIST,
     REGION_COLORS,
     CURRENCY_COLORS,
+    ISSUER_TYPE_COLORS,
+    ISSUER_TYPE_LABELS,
     calcWeightedMean,
     calcWeightedHarmonic,
     calculateSinglePortfolioLookthrough,
@@ -1091,7 +1352,8 @@
     calculatePortfolioAssetAndCurrencyMetrics,
     calculateAssetClassComparison,
     calculateBondRegionIssuerBreakdown,
-    calculatePortfolioRiskReturn
+    calculatePortfolioRiskReturn,
+    calculateSinglePortfolioPies
   };
 
   if (typeof module !== 'undefined' && module.exports) {
