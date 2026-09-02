@@ -327,7 +327,7 @@
       Charts.renderDashboardSectors("plot_sector_pie", sectorData, state.activeSidebarPort, pConf.name);
       Charts.renderSectorBarsPlot("plot_sector_bars", sectorData, state.portfolios);
       Charts.renderSectorDeltaPlot("plot_sector_delta", sectorData, state.selectedDeltaPair, state.portfolios);
-      Tables.renderSectorDetailTable("table_sectors_detail", sectorData);
+      Tables.renderSectorDetailTable("table_sectors_detail", sectorData, state.portfolios);
       Tables.renderSectorDrilldownTable("table_sector_drilldown", calcPorts, state.selectedDrilldownSector);
     } else if (state.activeTab === "tab_holdings") {
       Charts.renderTop20BarsPlot("plot_top20_bars", topHoldings.combinedTop, state.portfolios);

@@ -301,35 +301,94 @@
     elem.innerHTML = html;
   }
 
-  function renderSectorDetailTable(elementId, sectorData) {
+  function renderSectorDetailTable(elementId, sectorData, portfoliosState = null) {
     const elem = document.getElementById(elementId);
     if (!elem) return;
+
+    const name1 = portfoliosState?.portfolio_1?.name || "Portfolio 1";
+    const name2 = portfoliosState?.portfolio_2?.name || "Portfolio 2";
+    const name3 = portfoliosState?.portfolio_3?.name || "Portfolio 3";
+
+    // 1. Max Wert für Heatmap in Spalten 2-4 ermitteln
+    let maxWeight = 1;
+    sectorData.forEach(s => {
+      maxWeight = Math.max(maxWeight, s.weight_portfolio_1 || 0, s.weight_portfolio_2 || 0, s.weight_portfolio_3 || 0);
+    });
+
+    // 2. Max absoluter Delta für In-Cell Balken in Spalten 5 & 6 ermitteln
+    let maxAbsDelta = 0.5;
+    sectorData.forEach(s => {
+      maxAbsDelta = Math.max(maxAbsDelta, Math.abs(s.delta_p1_p2 || 0), Math.abs(s.delta_p1_p3 || 0));
+    });
+
+    const getHeatmapStyle = (val) => {
+      if (val == null || isNaN(val) || val <= 0) return 'background-color: transparent;';
+      const ratio = Math.min(1, Math.max(0, val / maxWeight));
+      // Dezente blaue Tönung (LUKB-Blau #1E40AF)
+      const alpha = (0.04 + ratio * 0.28).toFixed(3);
+      return `background-color: rgba(30, 64, 175, ${alpha});`;
+    };
+
+    const renderInCellBar = (val) => {
+      const num = Number(val || 0);
+      const isZero = Math.abs(num) < 0.001;
+      const sign = num > 0 ? "+" : "";
+      const textVal = num.toFixed(2) + "%";
+      const textColor = isZero ? "text-muted" : num > 0 ? "text-primary fw-bold" : "text-danger fw-bold";
+      
+      // Balkenlänge in Prozent (maximal 50% für halbe Zellenbreite links oder rechts von der Nulllinie)
+      const barPct = Math.min(50, Math.round((Math.abs(num) / maxAbsDelta) * 50));
+
+      return `
+        <div class="d-flex align-items-center justify-content-end gap-2" style="min-width: 140px;">
+          <span class="font-monospace ${textColor}" style="width: 58px; text-align: right; font-size: 0.82rem;">
+            ${sign}${textVal}
+          </span>
+          <div style="flex: 1; min-width: 70px; max-width: 90px; height: 16px; display: flex; align-items: center; position: relative; background: #F1F5F9; border-radius: 3px; border: 1px solid #E2E8F0;">
+            <!-- Nulllinie in der Mitte -->
+            <div style="position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: #64748B; z-index: 3;"></div>
+            <!-- Negativer Balken (rot, nach links) -->
+            ${num < 0 ? `
+              <div style="position: absolute; right: 50%; height: 10px; width: ${barPct}%; background: #E11D48; border-radius: 2px 0 0 2px; z-index: 2;"></div>
+            ` : ''}
+            <!-- Positiver Balken (blau, nach rechts) -->
+            ${num > 0 ? `
+              <div style="position: absolute; left: 50%; height: 10px; width: ${barPct}%; background: #1E40AF; border-radius: 0 2px 2px 0; z-index: 2;"></div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    };
 
     let html = `
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0 text-center" style="font-size: 0.83rem;">
           <thead class="table-light">
             <tr>
-              <th class="text-start">GICS Sektor</th>
-              <th>Portfolio 1 (%)</th>
-              <th>Portfolio 2 (%)</th>
-              <th>Portfolio 3 (%)</th>
-              <th>Delta P1 vs P2</th>
-              <th>Delta P1 vs P3</th>
+              <th class="text-start ps-3" style="width: 22%;">GICS Sektor</th>
+              <th style="width: 14%;">${name1} (%)</th>
+              <th style="width: 14%;">${name2} (%)</th>
+              <th style="width: 14%;">${name3} (%)</th>
+              <th class="text-end pe-3" style="width: 18%;">Δ (${name1} vs ${name2})</th>
+              <th class="text-end pe-3" style="width: 18%;">Δ (${name1} vs ${name3})</th>
             </tr>
           </thead>
           <tbody>
     `;
 
     sectorData.forEach(s => {
+      const w1 = s.weight_portfolio_1 || 0;
+      const w2 = s.weight_portfolio_2 || 0;
+      const w3 = s.weight_portfolio_3 || 0;
+
       html += `
         <tr>
-          <td class="text-start">${getSectorBadge(s.gics_sector)}</td>
-          <td class="font-monospace">${s.weight_portfolio_1 > 0 ? s.weight_portfolio_1.toFixed(2) + '%' : '0.00%'}</td>
-          <td class="font-monospace">${s.weight_portfolio_2 > 0 ? s.weight_portfolio_2.toFixed(2) + '%' : '0.00%'}</td>
-          <td class="font-monospace">${s.weight_portfolio_3 > 0 ? s.weight_portfolio_3.toFixed(2) + '%' : '0.00%'}</td>
-          <td class="font-monospace">${formatDelta(s.delta_p1_p2)}</td>
-          <td class="font-monospace">${formatDelta(s.delta_p1_p3)}</td>
+          <td class="text-start ps-3">${getSectorBadge(s.gics_sector)}</td>
+          <td class="font-monospace text-dark fw-semibold" style="${getHeatmapStyle(w1)}">${w1 > 0 ? w1.toFixed(2) + '%' : '0.00%'}</td>
+          <td class="font-monospace text-dark fw-semibold" style="${getHeatmapStyle(w2)}">${w2 > 0 ? w2.toFixed(2) + '%' : '0.00%'}</td>
+          <td class="font-monospace text-dark fw-semibold" style="${getHeatmapStyle(w3)}">${w3 > 0 ? w3.toFixed(2) + '%' : '0.00%'}</td>
+          <td class="pe-3">${renderInCellBar(s.delta_p1_p2)}</td>
+          <td class="pe-3">${renderInCellBar(s.delta_p1_p3)}</td>
         </tr>
       `;
     });
