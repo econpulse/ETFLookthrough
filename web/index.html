@@ -44,6 +44,9 @@
             <a class="nav-link" href="#" data-tab="tab_dashboard_single"><i class="bi bi-pie-chart-fill me-1"></i> Dashboard Single</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_compare"><i class="bi bi-arrow-left-right me-1"></i> Vergleich</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="#" data-tab="tab_allocation"><i class="bi bi-globe me-1"></i> Allokation & Währungen</a>
           </li>
           <li class="nav-item">
@@ -542,6 +545,126 @@
             </div>
             <div class="card-body p-0">
               <div id="table_single_risk_metrics"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 1C: ⚖️ VERGLEICH (PORTFOLIO A − PORTFOLIO B) -->
+        <!-- =================================================================== -->
+        <div id="tab_compare" class="tab-content-panel d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+            <div>
+              <h4 class="mb-0 fw-bold text-dark"><i class="bi bi-arrow-left-right text-primary me-2"></i>Portfolio-Vergleich</h4>
+              <p class="text-muted small mb-0">Direkter Vergleich zweier beliebiger Portfolios mit Vorzeichen-Differenzen (&Delta; = Portfolio A &minus; Portfolio B).</p>
+            </div>
+          </div>
+
+          <!-- Doppel-Dropdown Menü Toolbar -->
+          <div class="card shadow-sm mb-3 border-primary-subtle bg-light">
+            <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-primary px-2 py-1"><i class="bi bi-1-circle me-1"></i>Portfolio A</span>
+                  <select id="select_compare_port_a" class="form-select form-select-sm fw-bold border-primary" style="min-width: 170px;"></select>
+                </div>
+
+                <span class="fs-4 fw-bold text-muted px-2">&minus;</span>
+
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-danger px-2 py-1"><i class="bi bi-2-circle me-1"></i>Portfolio B</span>
+                  <select id="select_compare_port_b" class="form-select form-select-sm fw-bold border-danger" style="min-width: 170px;"></select>
+                </div>
+              </div>
+              <div>
+                <span id="compare_result_badge" class="badge bg-primary px-3 py-2 fs-6 shadow-sm">Δ (TAA − SAA)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6 Delta Diverging Bar Charts (3x2 Grid) -->
+          <div class="row g-3 mb-3">
+            <!-- 1. Assetklassen-Differenzen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold bg-light py-2">
+                  <i class="bi bi-layers text-primary me-1"></i> Assetklassen-Differenzen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_compare_asset_classes" style="height: 280px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Währungs-Differenzen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold bg-light py-2">
+                  <i class="bi bi-cash-stack text-warning me-1"></i> Währungs-Differenzen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_compare_currencies" style="height: 280px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Aktien-Regionen-Differenzen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold bg-light py-2">
+                  <i class="bi bi-globe text-primary me-1"></i> Aktien-Regionen-Differenzen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_compare_equity_regions" style="height: 280px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Aktien-Sektoren-Differenzen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold bg-light py-2">
+                  <i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren-Differenzen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_compare_equity_sectors" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. Anleihen-Regionen-Differenzen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold bg-light py-2">
+                  <i class="bi bi-globe2 text-teal me-1" style="color:#0D9488;"></i> Anleihen-Regionen-Differenzen
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_compare_bond_regions" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. Anleihen-Sektoren-Differenzen -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header fw-semibold bg-light py-2">
+                  <i class="bi bi-shield-shaded text-teal me-1" style="color:#0D9488;"></i> Anleihen-Sektoren (Issuer)
+                </div>
+                <div class="card-body p-2">
+                  <div id="plot_compare_bond_issuers" style="height: 340px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabelle vergleichender Portfolio-Kennzahlen -->
+          <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold bg-white border-bottom py-2">
+              <i class="bi bi-table text-primary me-1"></i> Vergleichende Portfolio-Kennzahlen im Detail
+            </div>
+            <div class="card-body p-0">
+              <div id="table_compare_metrics"></div>
             </div>
           </div>
 

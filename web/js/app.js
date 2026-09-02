@@ -27,6 +27,8 @@
     singleEquitySectorRegion: "Total",
     singleBondIssuerRegion: "Total",
     singleCurrencyAssetClass: "Total",
+    comparePortA: "portfolio_1",
+    comparePortB: "portfolio_2",
     saveStatus: "Gespeichert"
   };
 
@@ -282,6 +284,8 @@
       Tables.renderMultiAssetSummaryTable("table_dash_multi_asset", assetCurrMetrics.summaryMetrics, state.portfolios);
     } else if (state.activeTab === "tab_dashboard_single") {
       renderSingleDashboardTab(analyticsResults);
+    } else if (state.activeTab === "tab_compare") {
+      renderCompareTab(analyticsResults);
     } else if (state.activeTab === "tab_allocation") {
       Charts.renderAssetAllocationPlot("plot_asset_allocation", assetCurrMetrics.assetAllocation, state.portfolios);
       Charts.renderOverallCurrencyPlot("plot_overall_currency", assetCurrMetrics.overallCurrencyCompare, state.portfolios);
@@ -440,6 +444,81 @@
     // 4. Risikotabelle rendern
     const nHoldings = calcPorts[pKey]?.holdings?.length || 0;
     Tables.renderSinglePortfolioRiskTable("table_single_risk_metrics", pSum, pConc, pConf.name, nHoldings);
+  }
+
+  function renderCompareTab(analyticsResults) {
+    const { calcPorts, concMetrics, assetCurrMetrics } = analyticsResults;
+
+    // 1. Dropdowns für Portfolio A und B befüllen
+    const selA = document.getElementById('select_compare_port_a');
+    const selB = document.getElementById('select_compare_port_b');
+
+    const portKeys = ["portfolio_1", "portfolio_2", "portfolio_3"];
+    const enabledPorts = portKeys.filter(k => state.portfolios[k] && state.portfolios[k].enabled);
+
+    if (selA && selB) {
+      let optHtmlA = '';
+      let optHtmlB = '';
+      enabledPorts.forEach(pk => {
+        const conf = state.portfolios[pk];
+        const name = conf.name || pk;
+        optHtmlA += `<option value="${pk}" ${state.comparePortA === pk ? 'selected' : ''}>${name}</option>`;
+        optHtmlB += `<option value="${pk}" ${state.comparePortB === pk ? 'selected' : ''}>${name}</option>`;
+      });
+
+      selA.innerHTML = optHtmlA;
+      selB.innerHTML = optHtmlB;
+
+      // Falls aktuelle Auswahl ungültig ist
+      if (!enabledPorts.includes(state.comparePortA)) {
+        state.comparePortA = enabledPorts[0] || "portfolio_1";
+        selA.value = state.comparePortA;
+      }
+      if (!enabledPorts.includes(state.comparePortB)) {
+        state.comparePortB = enabledPorts[1] || enabledPorts[0] || "portfolio_2";
+        selB.value = state.comparePortB;
+      }
+    }
+
+    const confA = state.portfolios[state.comparePortA];
+    const confB = state.portfolios[state.comparePortB];
+    const nameA = confA?.name || state.comparePortA;
+    const nameB = confB?.name || state.comparePortB;
+
+    // 2. Result Badge
+    const badge = document.getElementById('compare_result_badge');
+    if (badge) {
+      badge.innerText = `Δ (${nameA} − ${nameB})`;
+    }
+
+    // 3. Paarweise Vergleiche berechnen
+    const comp = Analytics.calculatePairwiseComparison(
+      state.comparePortA,
+      state.comparePortB,
+      state.portfolios,
+      state.data.holdings,
+      state.data.tickers,
+      analyticsResults
+    );
+
+    if (comp) {
+      Charts.renderDivergingDeltaPlot("plot_compare_asset_classes", comp.assetDeltas, nameA, nameB, "%-Pkt.", 110);
+      Charts.renderDivergingDeltaPlot("plot_compare_currencies", comp.currencyDeltas, nameA, nameB, "%-Pkt.", 70);
+      Charts.renderDivergingDeltaPlot("plot_compare_equity_regions", comp.equityRegionDeltas, nameA, nameB, "%-Pkt.", 110);
+      Charts.renderDivergingDeltaPlot("plot_compare_equity_sectors", comp.equitySectorDeltas, nameA, nameB, "%-Pkt.", 140);
+      Charts.renderDivergingDeltaPlot("plot_compare_bond_regions", comp.bondRegionDeltas, nameA, nameB, "%-Pkt.", 110);
+      Charts.renderDivergingDeltaPlot("plot_compare_bond_issuers", comp.bondIssuerDeltas, nameA, nameB, "%-Pkt.", 140);
+    }
+
+    // 4. Vergleichende Tabelle
+    const sumA = assetCurrMetrics.summaryMetrics.find(m => m.portfolio_key === state.comparePortA);
+    const sumB = assetCurrMetrics.summaryMetrics.find(m => m.portfolio_key === state.comparePortB);
+    const cA = concMetrics.find(m => m.portfolio_key === state.comparePortA);
+    const cB = concMetrics.find(m => m.portfolio_key === state.comparePortB);
+    const nHoldingsA = calcPorts[state.comparePortA]?.holdings?.length || 0;
+    const nHoldingsB = calcPorts[state.comparePortB]?.holdings?.length || 0;
+
+    Tables.renderPortfolioComparisonTable("table_compare_metrics", sumA, sumB, cA, cB, nameA, nameB, nHoldingsA, nHoldingsB);
   }
 
   function renderDashboardKpis(summaryMetrics, concMetrics) {
@@ -881,6 +960,17 @@
 
     document.getElementById('select_single_currency_asset_class')?.addEventListener('change', (e) => {
       state.singleCurrencyAssetClass = e.target.value;
+      updateApp();
+    });
+
+    // Vergleich Tab Dropdowns
+    document.getElementById('select_compare_port_a')?.addEventListener('change', (e) => {
+      state.comparePortA = e.target.value;
+      updateApp();
+    });
+
+    document.getElementById('select_compare_port_b')?.addEventListener('change', (e) => {
+      state.comparePortB = e.target.value;
       updateApp();
     });
   }

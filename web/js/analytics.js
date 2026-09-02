@@ -1333,6 +1333,132 @@
     };
   }
 
+  /**
+   * Berechnet den Paarvergleich zwischen Portfolio A und Portfolio B (Delta = A - B)
+   */
+  function calculatePairwiseComparison(portAKey, portBKey, portfoliosConfig, cleanHoldings, tickersData, analyticsResults) {
+    const pConfA = portfoliosConfig[portAKey];
+    const pConfB = portfoliosConfig[portBKey];
+
+    const nameA = pConfA?.name || portAKey;
+    const nameB = pConfB?.name || portBKey;
+
+    const piesA = calculateSinglePortfolioPies(portAKey, portfoliosConfig, cleanHoldings, tickersData, {
+      equitySectorRegion: "Total",
+      bondIssuerRegion: "Total",
+      currencyAssetClass: "Total"
+    });
+
+    const piesB = calculateSinglePortfolioPies(portBKey, portfoliosConfig, cleanHoldings, tickersData, {
+      equitySectorRegion: "Total",
+      bondIssuerRegion: "Total",
+      currencyAssetClass: "Total"
+    });
+
+    // 1. Assetklassen-Differenzen
+    const assetOrder = ["Aktien", "Bonds", "Real Estate", "Rohstoffe", "Cash"];
+    const assetDeltas = assetOrder.map(label => {
+      const valA = piesA?.assetClassesPie.find(x => x.label === label)?.value || 0;
+      const valB = piesB?.assetClassesPie.find(x => x.label === label)?.value || 0;
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    });
+
+    // 2. Währungs-Differenzen
+    const allCurrs = new Set();
+    (piesA?.currencyPie || []).forEach(c => allCurrs.add(c.label));
+    (piesB?.currencyPie || []).forEach(c => allCurrs.add(c.label));
+    allCurrs.delete("Übrige");
+
+    const currencyDeltas = Array.from(allCurrs).map(label => {
+      const valA = piesA?.currencyPie.find(x => x.label === label)?.value || 0;
+      const valB = piesB?.currencyPie.find(x => x.label === label)?.value || 0;
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 8);
+
+    // 3. Aktien-Regionen-Differenzen
+    const allEqRegions = new Set();
+    (piesA?.equityRegionsPie || []).forEach(r => allEqRegions.add(r.label));
+    (piesB?.equityRegionsPie || []).forEach(r => allEqRegions.add(r.label));
+
+    const equityRegionDeltas = Array.from(allEqRegions).map(label => {
+      const valA = piesA?.equityRegionsPie.find(x => x.label === label)?.value || 0;
+      const valB = piesB?.equityRegionsPie.find(x => x.label === label)?.value || 0;
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+    // 4. Aktien-Sektoren-Differenzen (GICS 11)
+    const equitySectorDeltas = GICS_11_SECTORS.map(label => {
+      const valA = piesA?.equitySectorsPie.find(x => x.label === label)?.value || 0;
+      const valB = piesB?.equitySectorsPie.find(x => x.label === label)?.value || 0;
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+    // 5. Anleihen-Regionen-Differenzen
+    const allBondRegions = new Set();
+    (piesA?.bondRegionsPie || []).forEach(r => allBondRegions.add(r.label));
+    (piesB?.bondRegionsPie || []).forEach(r => allBondRegions.add(r.label));
+
+    const bondRegionDeltas = Array.from(allBondRegions).map(label => {
+      const valA = piesA?.bondRegionsPie.find(x => x.label === label)?.value || 0;
+      const valB = piesB?.bondRegionsPie.find(x => x.label === label)?.value || 0;
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+    // 6. Anleihen-Sektoren-Differenzen (Issuer Types)
+    const allIssuers = new Set();
+    (piesA?.bondIssuerPie || []).forEach(iss => allIssuers.add(iss.label));
+    (piesB?.bondIssuerPie || []).forEach(iss => allIssuers.add(iss.label));
+
+    const bondIssuerDeltas = Array.from(allIssuers).map(label => {
+      const valA = piesA?.bondIssuerPie.find(x => x.label === label)?.value || 0;
+      const valB = piesB?.bondIssuerPie.find(x => x.label === label)?.value || 0;
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+    return {
+      nameA,
+      nameB,
+      portAKey,
+      portBKey,
+      assetDeltas,
+      currencyDeltas,
+      equityRegionDeltas,
+      equitySectorDeltas,
+      bondRegionDeltas,
+      bondIssuerDeltas
+    };
+  }
+
   const Analytics = {
     GICS_11_SECTORS,
     GICS_SECTOR_COLORS,
@@ -1355,7 +1481,8 @@
     calculateAssetClassComparison,
     calculateBondRegionIssuerBreakdown,
     calculatePortfolioRiskReturn,
-    calculateSinglePortfolioPies
+    calculateSinglePortfolioPies,
+    calculatePairwiseComparison
   };
 
   if (typeof module !== 'undefined' && module.exports) {

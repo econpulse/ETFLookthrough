@@ -689,11 +689,73 @@
     Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
   }
 
+  /**
+   * Rendert ein zentriertes divergierendes horizontales Balkendiagramm für Delta-Vergleiche (A - B)
+   */
+  function renderDivergingDeltaPlot(elementId, items, nameA = "Portfolio A", nameB = "Portfolio B", unit = "%-Pkt.", marginL = 130) {
+    const elem = document.getElementById(elementId);
+    if (!elem || typeof Plotly === 'undefined') return;
+
+    if (!items || items.length === 0) {
+      Plotly.newPlot(elem, [], {
+        ...DEFAULT_PLOT_LAYOUT,
+        annotations: [{ text: "Keine Daten verfügbar", showarrow: false, font: { size: 13, color: "#64748B" } }]
+      }, { responsive: true, displayModeBar: false });
+      return;
+    }
+
+    // Für Plotly umkehren
+    const revItems = [...items].reverse();
+
+    const yVals = revItems.map(d => d.label);
+    const xVals = revItems.map(d => d.delta);
+    const colors = xVals.map(v => v >= 0 ? "#1E40AF" : "#E11D48");
+
+    const hoverTexts = revItems.map(d => {
+      const vA = (d.valA || 0).toFixed(2);
+      const vB = (d.valB || 0).toFixed(2);
+      const sign = d.delta >= 0 ? "+" : "";
+      return `<b>${d.label}</b><br>${nameA}: ${vA}%<br>${nameB}: ${vB}%<br>Δ (${nameA} − ${nameB}): <b>${sign}${d.delta.toFixed(2)}${unit}</b>`;
+    });
+
+    const trace = {
+      y: yVals,
+      x: xVals,
+      type: "bar",
+      orientation: "h",
+      marker: { color: colors },
+      hovertext: hoverTexts,
+      hoverinfo: "text"
+    };
+
+    const maxAbs = Math.max(...xVals.map(v => Math.abs(v)), 0.5);
+    const rangeLimit = Math.ceil(maxAbs * 1.15 * 10) / 10;
+
+    const layout = {
+      ...DEFAULT_PLOT_LAYOUT,
+      margin: { t: 15, r: 25, l: marginL, b: 35 },
+      xaxis: {
+        title: `Δ (${nameA} [+] vs. ${nameB} [−]) in ${unit}`,
+        zerolinecolor: "#334155",
+        zerolinewidth: 2,
+        gridcolor: "#E2E8F0",
+        range: [-rangeLimit, rangeLimit]
+      },
+      yaxis: {
+        automargin: true,
+        tickfont: { size: 12, color: "#1E293B" }
+      }
+    };
+
+    Plotly.react(elem, [trace], layout, { responsive: true, displayModeBar: false });
+  }
+
   const Charts = {
     renderDashboardSectors,
     renderSingleDonutPie,
     renderSingleStackedBar,
     renderSingleHorizontalBars,
+    renderDivergingDeltaPlot,
     renderAssetAllocationPlot,
     renderAssetDeltaPlot,
     renderOverallCurrencyPlot,

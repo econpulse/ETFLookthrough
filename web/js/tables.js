@@ -878,6 +878,114 @@
     elem.innerHTML = html;
   }
 
+  /**
+   * Rendert die vergleichende Portfolio-Kennzahlen-Tabelle (Portfolio A vs Portfolio B vs Delta)
+   */
+  function renderPortfolioComparisonTable(elementId, summaryA, summaryB, concA, concB, nameA, nameB, nHoldingsA, nHoldingsB) {
+    const elem = document.getElementById(elementId);
+    if (!elem) return;
+
+    const formatVal = (val, dec = 2, unit = "") => {
+      if (val == null || isNaN(val)) return "-";
+      return `${val.toFixed(dec)}${unit}`;
+    };
+
+    const makeRow = (label, valA, valB, dec = 2, unit = "", invertColor = false) => {
+      const numA = Number(valA);
+      const numB = Number(valB);
+      const hasA = valA != null && !isNaN(numA);
+      const hasB = valB != null && !isNaN(numB);
+
+      let deltaStr = "-";
+      let badgeClass = "text-muted";
+
+      if (hasA && hasB) {
+        const delta = numA - numB;
+        const sign = delta > 0 ? "+" : "";
+        deltaStr = `${sign}${delta.toFixed(dec)}${unit}`;
+
+        if (Math.abs(delta) > 0.001) {
+          const isPositiveGood = !invertColor;
+          if (delta > 0) {
+            badgeClass = isPositiveGood ? "text-primary fw-bold" : "text-danger fw-bold";
+          } else {
+            badgeClass = isPositiveGood ? "text-danger fw-bold" : "text-primary fw-bold";
+          }
+        }
+      }
+
+      return `
+        <tr>
+          <td class="ps-3 text-dark">${label}</td>
+          <td class="text-end font-monospace">${hasA ? formatVal(numA, dec, unit) : "-"}</td>
+          <td class="text-end font-monospace">${hasB ? formatVal(numB, dec, unit) : "-"}</td>
+          <td class="text-end pe-3 font-monospace ${badgeClass}">${deltaStr}</td>
+        </tr>
+      `;
+    };
+
+    const makeHeader = (title, icon, colorClass = "text-primary") => `
+      <tr class="table-light">
+        <th colspan="4" class="ps-3 py-2 ${colorClass} fw-bold small">
+          <i class="bi ${icon} me-1"></i> ${title}
+        </th>
+      </tr>
+    `;
+
+    let html = `
+      <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0" style="font-size: 0.85rem;">
+          <thead class="table-light border-bottom">
+            <tr>
+              <th class="ps-3" style="width: 40%;">Kennzahl / Segment</th>
+              <th class="text-end" style="width: 20%;">${nameA || "Portfolio A"}</th>
+              <th class="text-end" style="width: 20%;">${nameB || "Portfolio B"}</th>
+              <th class="text-end pe-3" style="width: 20%;">Differenz (Δ = A − B)</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    // 1. Ertrag & Risiko
+    html += makeHeader("Ertrag & Risiko (p.a.)", "bi-graph-up-arrow", "text-primary");
+    html += makeRow("Erwartete Rendite", summaryA?.expected_return, summaryB?.expected_return, 2, "%");
+    html += makeRow("Erwartete Volatilität", summaryA?.expected_vol, summaryB?.expected_vol, 2, "%", true);
+    html += makeRow("Sharpe Ratio (rf = 0)", summaryA?.sharpe_ratio, summaryB?.sharpe_ratio, 2, "");
+
+    // 2. Diversifikation & Konzentration
+    html += makeHeader("Diversifikation & Konzentration", "bi-pie-chart", "text-secondary");
+    html += makeRow("Effektive Titelanzahl (N_eff)", concA?.n_eff, concB?.n_eff, 1, "");
+    html += makeRow("Herfindahl-Index (HHI)", concA?.hhi, concB?.hhi, 1, "", true);
+    html += makeRow("Gini-Koeffizient", concA?.gini_coefficient, concB?.gini_coefficient, 3, "", true);
+    html += makeRow("Top 10 Konzentration", concA?.top10_weight, concB?.top10_weight, 2, "%", true);
+    html += makeRow("Look-Through Positionen", nHoldingsA, nHoldingsB, 0, "");
+
+    // 3. Aktien-Bewertung
+    html += makeHeader("Aktien-Bewertungskennzahlen (Look-Through)", "bi-currency-dollar", "text-primary");
+    html += makeRow("Aktienanteil am Portfolio", summaryA?.equity_weight_pct, summaryB?.equity_weight_pct, 2, "%");
+    html += makeRow("Dividendenrendite (gew.)", summaryA?.equity_weighted_div_yield, summaryB?.equity_weighted_div_yield, 2, "%");
+    html += makeRow("KGV (harmonisch gew.)", summaryA?.equity_weighted_pe, summaryB?.equity_weighted_pe, 1, "x");
+    html += makeRow("KBV (harmonisch gew.)", summaryA?.equity_weighted_pb, summaryB?.equity_weighted_pb, 2, "x");
+
+    // 4. Anleihen & Zinsrisiko
+    html += makeHeader("Anleihen & Zinsrisikokennzahlen", "bi-shield-check", "text-teal");
+    html += makeRow("Anleihenanteil am Portfolio", summaryA?.bond_weight_pct, summaryB?.bond_weight_pct, 2, "%");
+    html += makeRow("Yield to Maturity (YTM)", summaryA?.bond_weighted_ytm, summaryB?.bond_weighted_ytm, 2, "%");
+    html += makeRow("Modified Duration", summaryA?.bond_weighted_mod_duration, summaryB?.bond_weighted_mod_duration, 2, " J.");
+    html += makeRow("Durchschnittl. Restlaufzeit", summaryA?.bond_weighted_maturity_years, summaryB?.bond_weighted_maturity_years, 2, " J.");
+
+    // 5. Asset-Allokation
+    html += makeHeader("Asset-Allokation (Portfolioanteile)", "bi-layers", "text-dark");
+    html += makeRow("Aktien", summaryA?.equity_weight_pct, summaryB?.equity_weight_pct, 2, "%");
+    html += makeRow("Anleihen", summaryA?.bond_weight_pct, summaryB?.bond_weight_pct, 2, "%");
+    html += makeRow("Real Estate", summaryA?.real_estate_weight_pct, summaryB?.real_estate_weight_pct, 2, "%");
+    html += makeRow("Rohstoffe", summaryA?.commodity_weight_pct, summaryB?.commodity_weight_pct, 2, "%");
+    html += makeRow("Cash", summaryA?.cash_weight_pct, summaryB?.cash_weight_pct, 2, "%");
+
+    html += `</tbody></table></div>`;
+    elem.innerHTML = html;
+  }
+
   const Tables = {
     renderDashboardTop10Table,
     renderMultiAssetSummaryTable,
@@ -891,7 +999,8 @@
     renderConcentrationFullTable,
     renderUniverseSummaryTable,
     renderBondRegionIssuerTable,
-    renderSinglePortfolioRiskTable
+    renderSinglePortfolioRiskTable,
+    renderPortfolioComparisonTable
   };
 
   if (typeof module !== 'undefined' && module.exports) {
