@@ -420,18 +420,18 @@
       // 1. Assetklassen als eleganter 100%-Allokationsstreifen
       Charts.renderSingleStackedBar("plot_single_asset_classes", singlePies.assetClassesPie, pConf.name);
 
-      // 2. Währungen als horizontale Rang-Balken
-      Charts.renderSingleHorizontalBars("plot_single_currencies", singlePies.currencyPie, "%", 60);
+      // 2. Aktien-Sektoren als grosser horizontaler Rang-Balkenchart (Spalte 1)
+      Charts.renderSingleHorizontalBars("plot_single_equity_sectors", singlePies.equitySectorsPie, "%", 150);
 
-      // 3. Aktien-Regionen als horizontale Balken
+      // 3. Aktien-Regionen als horizontale Balken (Spalte 2 oben)
       Charts.renderSingleHorizontalBars("plot_single_equity_regions", singlePies.equityRegionsPie, "%", 110);
 
-      // 4. Aktien-Sektoren als der einzige, herausragende Donut-Chart!
+      // 4. Währungsmix als kleiner Donut-Pie (Spalte 2 unten)
       Charts.renderSingleDonutPie(
-        "plot_single_equity_sectors",
-        singlePies.equitySectorsPie,
+        "plot_single_currencies",
+        singlePies.currencyPie,
         pConf.name,
-        state.singleEquitySectorRegion === "Total" ? "Aktiensektoren" : state.singleEquitySectorRegion
+        state.singleCurrencyAssetClass === "Total" ? "Währungsmix" : `${state.singleCurrencyAssetClass}-Währungen`
       );
 
       // 5. Bond-Regionen als horizontale Balken

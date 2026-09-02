@@ -455,27 +455,25 @@
 
           <!-- 2. Thematische 3-Spalten-Struktur: Makro/Währungen | Aktien-Welt | Anleihen-Welt -->
           <div class="row g-3 mb-3">
-            <!-- SPALTE 1: MAKRO & WÄHRUNGEN -->
+            <!-- SPALTE 1: AKTIEN-SEKTOREN (Grosser horizontaler Balkenchart) -->
             <div class="col-lg-4">
               <div class="card h-100 shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
-                  <span class="fw-semibold"><i class="bi bi-cash-stack text-warning me-1"></i> Währungsmix</span>
+                  <span class="fw-semibold"><i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren</span>
                   <div class="d-flex align-items-center gap-1">
-                    <span class="text-muted small" style="font-size:0.75rem;">Filter:</span>
-                    <select id="select_single_currency_asset_class" class="form-select form-select-sm" style="width: 105px; font-size: 0.78rem;">
-                      <option value="Total" selected>Total</option>
-                      <option value="Aktien">Aktien</option>
-                      <option value="Bonds">Bonds</option>
+                    <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
+                    <select id="select_single_equity_sector_region" class="form-select form-select-sm" style="width: 125px; font-size: 0.78rem;">
+                      <option value="Total">Total</option>
                     </select>
                   </div>
                 </div>
                 <div class="card-body p-2 d-flex flex-column justify-content-center">
-                  <div id="plot_single_currencies" style="height: 520px;"></div>
+                  <div id="plot_single_equity_sectors" style="height: 520px;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- SPALTE 2: AKTIEN-WELT -->
+            <!-- SPALTE 2: AKTIEN-REGIONEN & WÄHRUNGSMIX -->
             <div class="col-lg-4">
               <div class="d-flex flex-column gap-3 h-100">
                 <!-- Aktien-Regionen (Balken) -->
@@ -488,19 +486,21 @@
                   </div>
                 </div>
 
-                <!-- Aktien-Sektoren (Der einzige Donut als Star!) -->
+                <!-- Währungsmix (Kleiner Donut-Pie) -->
                 <div class="card shadow-sm flex-fill">
                   <div class="card-header d-flex justify-content-between align-items-center bg-light py-2">
-                    <span class="fw-semibold"><i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren</span>
+                    <span class="fw-semibold"><i class="bi bi-cash-stack text-warning me-1"></i> Währungsmix</span>
                     <div class="d-flex align-items-center gap-1">
-                      <span class="text-muted small" style="font-size:0.75rem;">Region:</span>
-                      <select id="select_single_equity_sector_region" class="form-select form-select-sm" style="width: 125px; font-size: 0.78rem;">
-                        <option value="Total">Total</option>
+                      <span class="text-muted small" style="font-size:0.75rem;">Filter:</span>
+                      <select id="select_single_currency_asset_class" class="form-select form-select-sm" style="width: 105px; font-size: 0.78rem;">
+                        <option value="Total" selected>Total</option>
+                        <option value="Aktien">Aktien</option>
+                        <option value="Bonds">Bonds</option>
                       </select>
                     </div>
                   </div>
                   <div class="card-body p-2">
-                    <div id="plot_single_equity_sectors" style="height: 280px;"></div>
+                    <div id="plot_single_currencies" style="height: 280px;"></div>
                   </div>
                 </div>
               </div>
