@@ -1445,6 +1445,48 @@
       };
     }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
+    // 7. Rohstoffe & Immobilien Differenzen (nach sub_asset)
+    const tickerMap = {};
+    (tickersData || []).forEach(t => {
+      if (t && t.ric) tickerMap[t.ric] = t;
+    });
+
+    const subAssetWeightsA = {};
+    const subAssetWeightsB = {};
+    const allSubAssets = new Set();
+
+    const wA = pConfA?.weights || {};
+    const wB = pConfB?.weights || {};
+
+    Object.entries(wA).forEach(([ric, w]) => {
+      const t = tickerMap[ric];
+      if (t && ["Real Estate", "Immobilien", "Rohstoffe"].includes(t.asset_type)) {
+        const sub = t.sub_asset || t.label || ric;
+        allSubAssets.add(sub);
+        subAssetWeightsA[sub] = (subAssetWeightsA[sub] || 0) + Number(w || 0);
+      }
+    });
+
+    Object.entries(wB).forEach(([ric, w]) => {
+      const t = tickerMap[ric];
+      if (t && ["Real Estate", "Immobilien", "Rohstoffe"].includes(t.asset_type)) {
+        const sub = t.sub_asset || t.label || ric;
+        allSubAssets.add(sub);
+        subAssetWeightsB[sub] = (subAssetWeightsB[sub] || 0) + Number(w || 0);
+      }
+    });
+
+    const subAssetDeltas = Array.from(allSubAssets).map(label => {
+      const valA = Number((subAssetWeightsA[label] || 0).toFixed(2));
+      const valB = Number((subAssetWeightsB[label] || 0).toFixed(2));
+      return {
+        label,
+        valA,
+        valB,
+        delta: Number((valA - valB).toFixed(2))
+      };
+    }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
     return {
       nameA,
       nameB,
@@ -1455,7 +1497,8 @@
       equityRegionDeltas,
       equitySectorDeltas,
       bondRegionDeltas,
-      bondIssuerDeltas
+      bondIssuerDeltas,
+      subAssetDeltas
     };
   }
 

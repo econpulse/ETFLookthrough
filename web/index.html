@@ -592,67 +592,82 @@
                   <i class="bi bi-layers text-primary me-1"></i> Assetklassen-Differenzen
                 </div>
                 <div class="card-body p-2">
-                  <div id="plot_compare_asset_classes" style="height: 280px;"></div>
+                  <div id="plot_compare_asset_classes" style="height: 320px;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 2. Währungs-Differenzen -->
-            <div class="col-lg-4">
-              <div class="card h-100 shadow-sm">
-                <div class="card-header fw-semibold bg-light py-2">
-                  <i class="bi bi-cash-stack text-warning me-1"></i> Währungs-Differenzen
-                </div>
-                <div class="card-body p-2">
-                  <div id="plot_compare_currencies" style="height: 280px;"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 3. Aktien-Regionen-Differenzen -->
+            <!-- 2. Aktien-Regionen-Differenzen (kam von Top-Rechts) -->
             <div class="col-lg-4">
               <div class="card h-100 shadow-sm">
                 <div class="card-header fw-semibold bg-light py-2">
                   <i class="bi bi-globe text-primary me-1"></i> Aktien-Regionen-Differenzen
                 </div>
                 <div class="card-body p-2">
-                  <div id="plot_compare_equity_regions" style="height: 280px;"></div>
+                  <div id="plot_compare_equity_regions" style="height: 320px;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 4. Aktien-Sektoren-Differenzen -->
+            <!-- 3. Aktien-Sektoren-Differenzen (kam von Bottom-Links) -->
             <div class="col-lg-4">
               <div class="card h-100 shadow-sm">
                 <div class="card-header fw-semibold bg-light py-2">
                   <i class="bi bi-diagram-3 text-primary me-1"></i> Aktien-Sektoren-Differenzen
                 </div>
                 <div class="card-body p-2">
-                  <div id="plot_compare_equity_sectors" style="height: 340px;"></div>
+                  <div id="plot_compare_equity_sectors" style="height: 320px;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 5. Anleihen-Regionen-Differenzen -->
+            <!-- 4. Währungs-Differenzen (kam von Top-Mitte) -->
             <div class="col-lg-4">
               <div class="card h-100 shadow-sm">
                 <div class="card-header fw-semibold bg-light py-2">
-                  <i class="bi bi-globe2 text-teal me-1" style="color:#0D9488;"></i> Anleihen-Regionen-Differenzen
+                  <i class="bi bi-cash-stack text-warning me-1"></i> Währungs-Differenzen
                 </div>
                 <div class="card-body p-2">
-                  <div id="plot_compare_bond_regions" style="height: 340px;"></div>
+                  <div id="plot_compare_currencies" style="height: 300px;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 6. Anleihen-Sektoren-Differenzen -->
+            <!-- 5. Anleihen-Differenzen (Kombinierte Box mit 2 Tabs: Regionen & Issuer) -->
+            <div class="col-lg-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold"><i class="bi bi-shield-check text-teal me-1" style="color:#0D9488;"></i> Anleihen</span>
+                  <ul class="nav nav-pills card-header-pills" id="pills_compare_bonds" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active py-0 px-2 small" id="pills-compare-bond-reg-tab" data-bs-toggle="pill" data-bs-target="#pills-compare-bond-reg" type="button" role="tab" style="font-size: 0.78rem;">Regionen</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link py-0 px-2 small" id="pills-compare-bond-iss-tab" data-bs-toggle="pill" data-bs-target="#pills-compare-bond-iss" type="button" role="tab" style="font-size: 0.78rem;">Issuer</button>
+                    </li>
+                  </ul>
+                </div>
+                <div class="card-body p-2">
+                  <div class="tab-content" id="pills_compare_bonds_content">
+                    <div class="tab-pane fade show active" id="pills-compare-bond-reg" role="tabpanel">
+                      <div id="plot_compare_bond_regions" style="height: 300px;"></div>
+                    </div>
+                    <div class="tab-pane fade" id="pills-compare-bond-iss" role="tabpanel">
+                      <div id="plot_compare_bond_issuers" style="height: 300px;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. Rohstoffe & Immobilien Differenzen (nach sub_asset) -->
             <div class="col-lg-4">
               <div class="card h-100 shadow-sm">
                 <div class="card-header fw-semibold bg-light py-2">
-                  <i class="bi bi-shield-shaded text-teal me-1" style="color:#0D9488;"></i> Anleihen-Sektoren (Issuer)
+                  <i class="bi bi-gem text-warning me-1"></i> Rohstoffe & Immobilien (nach Sub-Asset)
                 </div>
                 <div class="card-body p-2">
-                  <div id="plot_compare_bond_issuers" style="height: 340px;"></div>
+                  <div id="plot_compare_sub_assets" style="height: 300px;"></div>
                 </div>
               </div>
             </div>

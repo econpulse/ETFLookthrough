@@ -359,13 +359,20 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       region = if ("region" %in% names(.)) trimws(as.character(region)) else "Global",
       factor = if ("factor" %in% names(.)) trimws(as.character(factor)) else "Standard",
       sector = if ("sector" %in% names(.)) trimws(as.character(sector)) else "All",
-      asset_type = if ("asset_type" %in% names(.)) {
-        ifelse(is.na(asset_type) | trimws(as.character(asset_type)) == "", "Aktien", trimws(as.character(asset_type)))
-      } else {
-        "Aktien"
-      },
+      asset_type = case_when(
+        trimws(as.character(asset_type)) %in% c("Anleihen", "Bonds", "Fixed Income") ~ "Bonds",
+        trimws(as.character(asset_type)) %in% c("Immobilien", "Real Estate", "REITs") ~ "Real Estate",
+        trimws(as.character(asset_type)) %in% c("Liquidität", "Liquiditaet", "Cash") ~ "Cash",
+        trimws(as.character(asset_type)) %in% c("Rohstoffe", "Commodities") ~ "Rohstoffe",
+        TRUE ~ "Aktien"
+      ),
       ret = if ("ret" %in% names(.)) suppressWarnings(as.numeric(ret)) else NA_real_,
-      vol = if ("vol" %in% names(.)) suppressWarnings(as.numeric(vol)) else NA_real_
+      vol = if ("vol" %in% names(.)) suppressWarnings(as.numeric(vol)) else NA_real_,
+      sub_asset = if ("sub_asset" %in% names(.)) {
+        ifelse(is.na(sub_asset) | trimws(as.character(sub_asset)) == "", asset_type, trimws(as.character(sub_asset)))
+      } else {
+        asset_type
+      }
     )
   
   # 1b. Korrelationsmatrix aus Sheet 'corr' laden
@@ -417,6 +424,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       !is.na(weight_raw) & weight_raw > 0
     ) %>%
     mutate(
+      currency = as.character(currency),
       ytm = NA_real_,
       mod_duration = NA_real_,
       maturity_date = NA_character_,
@@ -431,6 +439,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       !is.na(weight_raw) & weight_raw > 0
     ) %>%
     mutate(
+      currency = as.character(currency),
       gics_sector = NA_character_,
       div_yield = NA_real_,
       pe = NA_real_,
@@ -446,7 +455,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
     ) %>%
     mutate(
       gics_sector = "Real Estate",
-      currency = ifelse(is.na(currency) & (grepl("\\.S$", holding_ric) | etf_ric == "LP68082242"), "CHF", currency),
+      currency = as.character(ifelse(is.na(currency) & (grepl("\\.S$", holding_ric) | etf_ric == "LP68082242"), "CHF", as.character(currency))),
       ytm = NA_real_,
       mod_duration = NA_real_,
       maturity_date = NA_character_,
@@ -468,7 +477,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       mod_duration = NA_real_,
       maturity_date = NA_character_,
       maturity_years = NA_real_,
-      currency = ifelse(is.na(currency) | currency == "", "CHF", currency)
+      currency = as.character(ifelse(is.na(currency) | currency == "", "CHF", as.character(currency)))
     )
   
   clean_rohstoffe <- joined_data %>%
@@ -486,7 +495,7 @@ load_etf_data <- function(file_path = "Data.xlsx") {
       mod_duration = NA_real_,
       maturity_date = NA_character_,
       maturity_years = NA_real_,
-      currency = ifelse(is.na(currency) | currency == "", ifelse(holding_ric == "CMD_GOLD", "CHF", "USD"), currency)
+      currency = as.character(ifelse(is.na(currency) | currency == "", ifelse(holding_ric == "CMD_GOLD", "CHF", "USD"), as.character(currency)))
     )
   
   # 5. Gesamtdatensatz zusammenfuehren

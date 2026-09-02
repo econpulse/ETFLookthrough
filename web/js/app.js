@@ -503,11 +503,12 @@
 
     if (comp) {
       Charts.renderDivergingDeltaPlot("plot_compare_asset_classes", comp.assetDeltas, nameA, nameB, "%-Pkt.", 110);
-      Charts.renderDivergingDeltaPlot("plot_compare_currencies", comp.currencyDeltas, nameA, nameB, "%-Pkt.", 70);
       Charts.renderDivergingDeltaPlot("plot_compare_equity_regions", comp.equityRegionDeltas, nameA, nameB, "%-Pkt.", 110);
       Charts.renderDivergingDeltaPlot("plot_compare_equity_sectors", comp.equitySectorDeltas, nameA, nameB, "%-Pkt.", 140);
+      Charts.renderDivergingDeltaPlot("plot_compare_currencies", comp.currencyDeltas, nameA, nameB, "%-Pkt.", 70);
       Charts.renderDivergingDeltaPlot("plot_compare_bond_regions", comp.bondRegionDeltas, nameA, nameB, "%-Pkt.", 110);
       Charts.renderDivergingDeltaPlot("plot_compare_bond_issuers", comp.bondIssuerDeltas, nameA, nameB, "%-Pkt.", 140);
+      Charts.renderDivergingDeltaPlot("plot_compare_sub_assets", comp.subAssetDeltas, nameA, nameB, "%-Pkt.", 130);
     }
 
     // 4. Vergleichende Tabelle
@@ -984,6 +985,17 @@
     document.getElementById('select_compare_port_b')?.addEventListener('change', (e) => {
       state.comparePortB = e.target.value;
       updateApp();
+    });
+
+    document.querySelectorAll('#pills_compare_bonds button[data-bs-toggle="pill"]').forEach(btn => {
+      btn.addEventListener('shown.bs.tab', (e) => {
+        const targetId = e.target.getAttribute('data-bs-target');
+        if (targetId === '#pills-compare-bond-reg') {
+          Plotly.Plots.resize('plot_compare_bond_regions');
+        } else if (targetId === '#pills-compare-bond-iss') {
+          Plotly.Plots.resize('plot_compare_bond_issuers');
+        }
+      });
     });
   }
 
