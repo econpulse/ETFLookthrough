@@ -12,6 +12,10 @@
         id: "p1",
         name: "TAA",
         enabled: true,
+        filters: {
+          equity: {},
+          bonds: {}
+        },
         weights: {
           "CHSPI.S": 14,
           "EMUU.L": 5,
@@ -37,6 +41,10 @@
         id: "p2",
         name: "SAA",
         enabled: true,
+        filters: {
+          equity: {},
+          bonds: {}
+        },
         weights: {
           "CHSPI.S": 13,
           "EMUU.L": 5,
@@ -62,6 +70,10 @@
         id: "p3",
         name: "TAA-Alt",
         enabled: true,
+        filters: {
+          equity: {},
+          bonds: {}
+        },
         weights: {
           "CHSPI.S": 13,
           "EMUU.L": 6,

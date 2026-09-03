@@ -106,6 +106,43 @@ assert.strictEqual(edgeConc[1].is_active, false, "Disabled Portfolio muss is_act
 
 console.log("   [PASS] Edge Cases erfolgreich abgesichert.");
 
+// 9. Portfolio-Filter Tests (Aktien-Sektor-Exklusion & Bond Maturity Bänder)
+console.log("-> Validiere Portfolio-Filter Funktionalität (Maturity)...");
+const testFilteredPorts = JSON.parse(JSON.stringify(savedPortfolios));
+testFilteredPorts.portfolio_1.filters = {
+  equity: {
+    "Nordamerika": ["Information Technology"]
+  },
+  bonds: {
+    "Schweiz": { min: 0, max: 5.0 }
+  }
+};
+
+const filteredCalc = Analytics.calculateAllPortfolios(testFilteredPorts, etfData.holdings, true);
+const rawCalc = Analytics.calculateAllPortfolios(savedPortfolios, etfData.holdings, true);
+
+// Prüfe: Keine IT-Holdings aus Nordamerika in P1
+const p1FilteredHoldings = filteredCalc.portfolio_1.holdings;
+const p1RawHoldings = rawCalc.portfolio_1.holdings;
+assert.ok(p1FilteredHoldings.length < p1RawHoldings.length, "Gefiltertes Portfolio muss weniger Holdings haben als ungefiltertes Portfolio");
+
+// Prüfe: Keine Schweizer Anleihen mit Maturity > 5.0
+const chBondsFiltered = p1FilteredHoldings.filter(h => h.asset_type === "Bonds" && (h.currency === "CHF" || h.etf_breakdown.includes("SPI") || h.etf_breakdown.includes("SBI")));
+chBondsFiltered.forEach(b => {
+  if (b.maturity_years != null) {
+    assert.ok(b.maturity_years <= 5.0001, `CH-Bond Maturity darf nicht > 5.0 sein (ist ${b.maturity_years})`);
+  }
+});
+
+// Prüfe calculateFilterImpact
+const impactP1 = Analytics.calculateFilterImpact("portfolio_1", testFilteredPorts, etfData.holdings, etfData.tickers, true);
+assert.ok(impactP1, "Impact calculation muss Objekt zurückgeben");
+assert.ok(impactP1.filtered.count < impactP1.unfiltered.count, "Gefilterte Titelanzahl muss kleiner sein");
+assert.ok(impactP1.regionalBondStats["Schweiz"].filteredAvgMaturity < impactP1.regionalBondStats["Schweiz"].rawAvgMaturity, "Gefilterte Maturity für Schweiz Anleihen muss gesunken sein");
+
+console.log(`   P1 Filter Impact: ${impactP1.unfiltered.count} -> ${impactP1.filtered.count} Titel, CH Bond Maturity: ${impactP1.regionalBondStats["Schweiz"].rawAvgMaturity.toFixed(2)} J. -> ${impactP1.regionalBondStats["Schweiz"].filteredAvgMaturity.toFixed(2)} J.`);
+console.log("   [PASS] Portfolio-Filter Tests erfolgreich bestanden.");
+
 console.log("\n=================================================================");
 console.log(">> ALLE VALIDIERUNGS- & ASSERTION-TESTS ERFOLGREICH BESTANDEN!");
 console.log("=================================================================");

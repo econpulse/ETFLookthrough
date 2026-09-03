@@ -92,7 +92,7 @@
     return (sumWeight > 0 && sumWeightedReciprocal > 0) ? (sumWeight / sumWeightedReciprocal) : null;
   }
 
-  function calculateSinglePortfolioLookthrough(etfWeights, cleanHoldings, useNormalizedWeights = true) {
+  function calculateSinglePortfolioLookthrough(etfWeights, cleanHoldings, useNormalizedWeights = true, filters = null) {
     const activeEntries = Object.entries(etfWeights || {}).filter(([ric, w]) => w != null && !isNaN(w) && Number(w) > 0);
     
     if (activeEntries.length === 0) return [];
@@ -111,6 +111,32 @@
       const h = cleanHoldings[i];
       const portWeightForEtf = normalizedPortWeights[h.etf_ric];
       if (portWeightForEtf == null) continue;
+
+      // Filterung nach Aktien-Region/Sektor & Bond-Region/Duration
+      if (filters) {
+        if (h.asset_type === "Aktien") {
+          const eqRegion = h.etf_region || "Global";
+          const excludedSectors = filters.equity?.[eqRegion] || filters.equity_excluded_sectors?.[eqRegion];
+          if (Array.isArray(excludedSectors) && excludedSectors.length > 0 && h.gics_sector && excludedSectors.includes(h.gics_sector)) {
+            continue;
+          }
+        } else if (h.asset_type === "Bonds") {
+          let bdRegion = h.etf_region || "Global";
+          if (h.etf_ric === "EMB.O") bdRegion = "EM HC";
+          else if (h.etf_ric === "ELD") bdRegion = "EM LC";
+
+          const matFilter = filters.bonds?.[bdRegion] || filters.bond_maturity_filters?.[bdRegion] || filters.bond_duration_filters?.[bdRegion];
+          if (matFilter) {
+            const minMat = (matFilter.min != null && matFilter.min !== "" && !isNaN(Number(matFilter.min))) ? Number(matFilter.min) : null;
+            const maxMat = (matFilter.max != null && matFilter.max !== "" && !isNaN(Number(matFilter.max))) ? Number(matFilter.max) : null;
+            const mat = (h.maturity_years != null && !isNaN(h.maturity_years)) ? Number(h.maturity_years) : (h.mod_duration != null ? Number(h.mod_duration) : null);
+            if (mat != null) {
+              if (minMat != null && mat < minMat) continue;
+              if (maxMat != null && mat > maxMat) continue;
+            }
+          }
+        }
+      }
 
       const baseWeight = useNormalizedWeights ? (h.weight_norm ?? h.weight_raw) : h.weight_raw;
       if (baseWeight == null || baseWeight <= 0) continue;
@@ -224,11 +250,12 @@
     for (const pKey of portKeys) {
       const pConf = portfoliosConfig[pKey];
       if (pConf && pConf.enabled) {
-        const holdings = calculateSinglePortfolioLookthrough(pConf.weights, cleanHoldings, useNormalizedWeights);
+        const holdings = calculateSinglePortfolioLookthrough(pConf.weights, cleanHoldings, useNormalizedWeights, pConf.filters);
         results[pKey] = {
           id: pConf.id || pKey,
           name: pConf.name || pKey,
           enabled: true,
+          filters: pConf.filters || null,
           holdings
         };
       } else {
@@ -236,6 +263,7 @@
           id: pConf?.id || pKey,
           name: pConf?.name || pKey,
           enabled: false,
+          filters: pConf?.filters || null,
           holdings: []
         };
       }
@@ -980,6 +1008,19 @@
         bondRegion = "EM LC";
       }
 
+      if (pConf && pConf.filters) {
+        const matFilter = pConf.filters.bonds?.[bondRegion] || pConf.filters.bond_maturity_filters?.[bondRegion] || pConf.filters.bond_duration_filters?.[bondRegion];
+        if (matFilter) {
+          const minMat = (matFilter.min != null && matFilter.min !== "" && !isNaN(Number(matFilter.min))) ? Number(matFilter.min) : null;
+          const maxMat = (matFilter.max != null && matFilter.max !== "" && !isNaN(Number(matFilter.max))) ? Number(matFilter.max) : null;
+          const mat = (h.maturity_years != null && !isNaN(h.maturity_years)) ? Number(h.maturity_years) : (h.mod_duration != null ? Number(h.mod_duration) : null);
+          if (mat != null) {
+            if (minMat != null && mat < minMat) continue;
+            if (maxMat != null && mat > maxMat) continue;
+          }
+        }
+      }
+
       let issuerType = h.issuer_type;
       if (!issuerType || issuerType === "#N/A" || issuerType === "NULL" || issuerType === "NA") {
         issuerType = "Andere";
@@ -1168,6 +1209,15 @@
       totalEquityWeight += effW;
       const tInfo = tickerMap.get(h.etf_ric);
       const region = tInfo?.region || h.etf_region || "Global";
+
+      if (pConf && pConf.filters) {
+        const excludedSectors = pConf.filters.equity?.[region] || pConf.filters.equity_excluded_sectors?.[region];
+        if (Array.isArray(excludedSectors) && excludedSectors.length > 0 && h.gics_sector && excludedSectors.includes(h.gics_sector)) {
+          continue;
+        }
+      }
+
+      totalEquityWeight += effW;
 
       equityHoldings.push({
         holding_ric: h.holding_ric,
@@ -1502,6 +1552,151 @@
     };
   }
 
+  function calculateFilterImpact(pKey, portfoliosConfig, cleanHoldings, tickers = [], useNormalizedWeights = true) {
+    const pConf = portfoliosConfig?.[pKey];
+    if (!pConf || !pConf.enabled) return null;
+
+    // 1. Ungefilterter Look-Through
+    const unfilteredHoldings = calculateSinglePortfolioLookthrough(pConf.weights, cleanHoldings, useNormalizedWeights, null);
+    // 2. Gefilterter Look-Through
+    const filteredHoldings = calculateSinglePortfolioLookthrough(pConf.weights, cleanHoldings, useNormalizedWeights, pConf.filters);
+
+    const calcStats = (hList) => {
+      const eqList = hList.filter(h => h.asset_type === "Aktien");
+      const bdList = hList.filter(h => h.asset_type === "Bonds");
+
+      const totalWeight = hList.reduce((s, h) => s + h.portfolio_weight, 0);
+      const eqWeight = eqList.reduce((s, h) => s + h.portfolio_weight, 0);
+      const bdWeight = bdList.reduce((s, h) => s + h.portfolio_weight, 0);
+
+      const divYieldVals = [];
+      const divYieldW = [];
+      const peVals = [];
+      const peW = [];
+      for (const h of eqList) {
+        if (h.div_yield != null && !isNaN(h.div_yield)) {
+          divYieldVals.push(h.div_yield);
+          divYieldW.push(h.portfolio_weight);
+        }
+        if (h.pe != null && !isNaN(h.pe) && h.pe > 0) {
+          peVals.push(h.pe);
+          peW.push(h.portfolio_weight);
+        }
+      }
+
+      const durVals = [];
+      const durW = [];
+      const matVals = [];
+      const matW = [];
+      const ytmVals = [];
+      const ytmW = [];
+      for (const h of bdList) {
+        if (h.mod_duration != null && !isNaN(h.mod_duration)) {
+          durVals.push(h.mod_duration);
+          durW.push(h.portfolio_weight);
+        }
+        if (h.maturity_years != null && !isNaN(h.maturity_years)) {
+          matVals.push(h.maturity_years);
+          matW.push(h.portfolio_weight);
+        }
+        if (h.ytm != null && !isNaN(h.ytm)) {
+          ytmVals.push(h.ytm);
+          ytmW.push(h.portfolio_weight);
+        }
+      }
+
+      return {
+        count: hList.length,
+        eqCount: eqList.length,
+        bdCount: bdList.length,
+        totalWeight,
+        eqWeight,
+        bdWeight,
+        avgDuration: calcWeightedMean(durVals, durW),
+        avgMaturity: calcWeightedMean(matVals, matW),
+        avgYtm: calcWeightedMean(ytmVals, ytmW),
+        avgDivYield: calcWeightedMean(divYieldVals, divYieldW),
+        avgPe: calcWeightedHarmonic(peVals, peW, 1.0)
+      };
+    };
+
+    const unfilteredStats = calcStats(unfilteredHoldings);
+    const filteredStats = calcStats(filteredHoldings);
+
+    // Regional Bond Maturity & Duration Stats
+    const bondRegions = ["Schweiz", "Eurozone", "Nordamerika", "UK", "EM HC", "EM LC"];
+    const regionalBondStats = {};
+    for (const reg of bondRegions) {
+      const getBondRegion = (h) => {
+        let r = h.etf_region || "Global";
+        if (h.etf_ric === "EMB.O") r = "EM HC";
+        else if (h.etf_ric === "ELD") r = "EM LC";
+        return r;
+      };
+      
+      const rawRegHoldings = cleanHoldings.filter(h => h.asset_type === "Bonds" && getBondRegion(h) === reg && (pConf.weights[h.etf_ric] || 0) > 0);
+      const rawMatVals = [];
+      const rawDurVals = [];
+      const rawW = [];
+      let minFound = 999;
+      let maxFound = -999;
+      for (const h of rawRegHoldings) {
+        const mat = (h.maturity_years != null && !isNaN(h.maturity_years)) ? Number(h.maturity_years) : (h.mod_duration != null ? Number(h.mod_duration) : null);
+        const w = h.weight_norm ?? h.weight_raw ?? 1;
+        if (mat != null) {
+          rawMatVals.push(mat);
+          minFound = Math.min(minFound, mat);
+          maxFound = Math.max(maxFound, mat);
+        }
+        if (h.mod_duration != null && !isNaN(h.mod_duration)) {
+          rawDurVals.push(Number(h.mod_duration));
+        }
+        rawW.push(w);
+      }
+
+      const matFilter = pConf.filters?.bonds?.[reg] || pConf.filters?.bond_maturity_filters?.[reg] || pConf.filters?.bond_duration_filters?.[reg];
+      const minMat = (matFilter?.min != null && matFilter.min !== "" && !isNaN(Number(matFilter.min))) ? Number(matFilter.min) : null;
+      const maxMat = (matFilter?.max != null && matFilter.max !== "" && !isNaN(Number(matFilter.max))) ? Number(matFilter.max) : null;
+
+      const filtMatVals = [];
+      const filtDurVals = [];
+      const filtW = [];
+      for (const h of rawRegHoldings) {
+        const mat = (h.maturity_years != null && !isNaN(h.maturity_years)) ? Number(h.maturity_years) : (h.mod_duration != null ? Number(h.mod_duration) : null);
+        if (mat != null) {
+          if (minMat != null && mat < minMat) continue;
+          if (maxMat != null && mat > maxMat) continue;
+          filtMatVals.push(mat);
+          const w = h.weight_norm ?? h.weight_raw ?? 1;
+          filtW.push(w);
+          if (h.mod_duration != null && !isNaN(h.mod_duration)) {
+            filtDurVals.push(Number(h.mod_duration));
+          }
+        }
+      }
+
+      regionalBondStats[reg] = {
+        minMaturityFound: minFound <= maxFound ? minFound : 0,
+        maxMaturityFound: minFound <= maxFound ? maxFound : 30,
+        rawCount: rawRegHoldings.length,
+        filteredCount: filtMatVals.length,
+        rawAvgMaturity: calcWeightedMean(rawMatVals, rawW),
+        filteredAvgMaturity: calcWeightedMean(filtMatVals, filtW),
+        rawAvgDuration: calcWeightedMean(rawDurVals, rawW),
+        filteredAvgDuration: calcWeightedMean(filtDurVals, filtW),
+        currentFilter: { min: minMat, max: maxMat }
+      };
+    }
+
+    return {
+      portfolioKey: pKey,
+      portfolioName: pConf.name,
+      unfiltered: unfilteredStats,
+      filtered: filteredStats,
+      regionalBondStats
+    };
+  }
+
   const Analytics = {
     GICS_11_SECTORS,
     GICS_SECTOR_COLORS,
@@ -1525,7 +1720,8 @@
     calculateBondRegionIssuerBreakdown,
     calculatePortfolioRiskReturn,
     calculateSinglePortfolioPies,
-    calculatePairwiseComparison
+    calculatePairwiseComparison,
+    calculateFilterImpact
   };
 
   if (typeof module !== 'undefined' && module.exports) {

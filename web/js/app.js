@@ -30,6 +30,7 @@
     singleCurrencyAssetClass: "Total",
     comparePortA: "portfolio_1",
     comparePortB: "portfolio_2",
+    selectedFilterPort: "portfolio_1",
     saveStatus: "Gespeichert"
   };
 
@@ -60,6 +61,16 @@
         state.data.tickers.map(t => t.ric),
         state.data.tickers
       ));
+
+      // Sicherstellen, dass Filter-Struktur auf allen Portfolios vorhanden ist
+      ["portfolio_1", "portfolio_2", "portfolio_3"].forEach(pk => {
+        if (state.portfolios[pk] && !state.portfolios[pk].filters) {
+          state.portfolios[pk].filters = {
+            equity: {},
+            bonds: {}
+          };
+        }
+      });
 
       setupEventHandlers();
       populateSectorDrilldownSelect();
@@ -299,19 +310,17 @@
         badge.innerText = `FI-Anteil am Portfolio: ${(bondBreakdown.totalFiWeight || 0).toFixed(1)}%`;
       }
     } else if (state.activeTab === "tab_sectors") {
-      Charts.renderDashboardSectors("plot_sector_pie", sectorData, state.activeSidebarPort, pConf.name);
-      Charts.renderSectorBarsPlot("plot_sector_bars", sectorData, state.portfolios);
-      Charts.renderSectorDeltaPlot("plot_sector_delta", sectorData, state.selectedDeltaPair, state.portfolios);
       Tables.renderSectorDetailTable("table_sectors_detail", sectorData, state.portfolios);
       Tables.renderSectorDrilldownTable("table_sector_drilldown", calcPorts, state.selectedDrilldownSector);
     } else if (state.activeTab === "tab_holdings") {
-      Charts.renderTop20BarsPlot("plot_top20_bars", topHoldings.combinedTop, state.portfolios);
-      Tables.renderTop20DetailTable("table_top20_detail", topHoldings.combinedTop);
       const selPortHoldings = calcPorts[state.selectedFullTablePort]?.holdings || [];
       Tables.renderFullLookthroughTable("table_full_lookthrough", selPortHoldings, state.fullTableSearch, state.selectedFullTableAssetClass, state.fullTablePage);
     } else if (state.activeTab === "tab_concentration") {
       Charts.renderLorenzPlot("plot_lorenz", lorenzData, state.portfolios);
       Tables.renderConcentrationFullTable("table_concentration_full", concMetrics);
+      Tables.renderTop20DetailTable("table_top20_detail", topHoldings.combinedTop);
+    } else if (state.activeTab === "tab_portfolio_filter") {
+      renderPortfolioFilterTab();
     } else if (state.activeTab === "tab_config") {
       renderConfigTab();
     } else if (state.activeTab === "tab_universe") {
@@ -713,6 +722,434 @@
     });
   }
 
+  /**
+   * Rendert das Tab 'Portfolio-Filter'
+   */
+  function renderPortfolioFilterTab() {
+    const pKey = state.selectedFilterPort || "portfolio_1";
+    const pConf = state.portfolios[pKey];
+    if (!pConf) return;
+
+    // Sicherstellen, dass die Filter-Struktur existiert
+    if (!pConf.filters) pConf.filters = { equity: {}, bonds: {} };
+    if (!pConf.filters.equity) pConf.filters.equity = {};
+    if (!pConf.filters.bonds) pConf.filters.bonds = {};
+
+    // 1. Portfolio-Buttons aktualisieren
+    const portBtns = document.querySelectorAll('.filter-port-btn');
+    portBtns.forEach(btn => {
+      const pk = btn.getAttribute('data-port');
+      const conf = state.portfolios[pk];
+      const name = conf?.name || pk;
+      const tag = pk === 'portfolio_1' ? 'P1' : pk === 'portfolio_2' ? 'P2' : 'P3';
+      btn.innerText = `${name} (${tag})`;
+      if (pk === pKey) {
+        btn.className = 'btn btn-sm btn-primary filter-port-btn active';
+      } else {
+        btn.className = 'btn btn-sm btn-outline-primary filter-port-btn';
+      }
+    });
+
+    // 2. Filter-Counter berechnen
+    let activeFilterCount = 0;
+    Object.values(pConf.filters.equity || {}).forEach(arr => {
+      if (Array.isArray(arr)) activeFilterCount += arr.length;
+    });
+    Object.values(pConf.filters.bonds || {}).forEach(obj => {
+      if (obj && ((obj.min != null && obj.min !== "") || (obj.max != null && obj.max !== ""))) {
+        activeFilterCount++;
+      }
+    });
+
+    const badgeElem = document.getElementById('filter-active-counter-badge');
+    if (badgeElem) {
+      if (activeFilterCount > 0) {
+        badgeElem.className = 'badge bg-warning text-dark px-3 py-2';
+        badgeElem.innerHTML = `<i class="bi bi-funnel-fill me-1"></i> ${activeFilterCount} Filter auf ${pConf.name} aktiv`;
+      } else {
+        badgeElem.className = 'badge bg-success px-3 py-2';
+        badgeElem.innerHTML = `<i class="bi bi-check-circle me-1"></i> Keine Filter aktiv (100% Rohdaten)`;
+      }
+    }
+
+    // 3. Impact KPI Cards aktualisieren
+    const impactPortTitle = document.getElementById('filter-impact-port-name');
+    if (impactPortTitle) impactPortTitle.innerText = `${pConf.name} (${pKey})`;
+
+    const normalizeHoldings = state.portfolios.settings?.normalize_holdings ?? true;
+    const impact = Analytics.calculateFilterImpact(pKey, state.portfolios, state.data.holdings, state.data.tickers, normalizeHoldings);
+
+    const kpiContainer = document.getElementById('filter-impact-kpis');
+    if (kpiContainer && impact) {
+      const u = impact.unfiltered;
+      const f = impact.filtered;
+
+      const formatDelta = (val, suffix = "", isGoodIfLower = false) => {
+        if (val == null || isNaN(val) || Math.abs(val) < 0.001) return `<span class="text-muted small">(=)</span>`;
+        const sign = val > 0 ? "+" : "";
+        const color = isGoodIfLower ? (val < 0 ? "text-success" : "text-danger") : (val > 0 ? "text-primary" : "text-secondary");
+        return `<span class="${color} small fw-bold">(${sign}${val.toFixed(2)}${suffix})</span>`;
+      };
+
+      const diffCount = f.count - u.count;
+      const diffMat = (f.avgMaturity != null && u.avgMaturity != null) ? (f.avgMaturity - u.avgMaturity) : null;
+      const diffDur = (f.avgDuration != null && u.avgDuration != null) ? (f.avgDuration - u.avgDuration) : null;
+      const diffDiv = (f.avgDivYield != null && u.avgDivYield != null) ? (f.avgDivYield - u.avgDivYield) : null;
+      const diffPe = (f.avgPe != null && u.avgPe != null) ? (f.avgPe - u.avgPe) : null;
+      const diffYtm = (f.avgYtm != null && u.avgYtm != null) ? (f.avgYtm - u.avgYtm) : null;
+
+      kpiContainer.innerHTML = `
+        <div class="col">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted small fw-semibold">Holdings (Look-Through)</div>
+            <div class="h5 mb-0 fw-bold text-dark">${f.count.toLocaleString()}</div>
+            <div class="small">${diffCount < 0 ? `<span class="text-danger fw-bold">${diffCount.toLocaleString()} Titel</span>` : '<span class="text-muted">Ungefiltert</span>'}</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted small fw-semibold">Ø Maturity (Bonds)</div>
+            <div class="h5 mb-0 fw-bold text-teal" style="color:#0D9488;">${f.avgMaturity != null ? f.avgMaturity.toFixed(2) + ' J.' : '-'}</div>
+            <div class="small">${formatDelta(diffMat, ' J.')}</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted small fw-semibold">Ø Duration (Bonds)</div>
+            <div class="h5 mb-0 fw-bold text-dark">${f.avgDuration != null ? f.avgDuration.toFixed(2) + ' J.' : '-'}</div>
+            <div class="small">${formatDelta(diffDur, ' J.')}</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted small fw-semibold">Ø YTM (Bonds)</div>
+            <div class="h5 mb-0 fw-bold text-dark">${f.avgYtm != null ? f.avgYtm.toFixed(2) + '%' : '-'}</div>
+            <div class="small">${formatDelta(diffYtm, '%')}</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted small fw-semibold">Ø Div.-Rendite (Aktien)</div>
+            <div class="h5 mb-0 fw-bold text-primary">${f.avgDivYield != null ? f.avgDivYield.toFixed(2) + '%' : '-'}</div>
+            <div class="small">${formatDelta(diffDiv, '%')}</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="p-2 border rounded bg-light">
+            <div class="text-muted small fw-semibold">Ø KGV / P/E (Aktien)</div>
+            <div class="h5 mb-0 fw-bold text-dark">${f.avgPe != null ? f.avgPe.toFixed(1) + 'x' : '-'}</div>
+            <div class="small">${formatDelta(diffPe, 'x', true)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 4. Aktien-Sektor-Exklusion pro Region rendern
+    const eqContainer = document.getElementById('filter-equity-regions-container');
+    if (eqContainer) {
+      const equityRegions = (typeof Constants !== 'undefined' && Constants.EQUITY_REGIONS_LIST) ? Constants.EQUITY_REGIONS_LIST : ["Schweiz", "Eurozone", "UK", "Nordamerika", "Pazifik", "Schwellenländer"];
+      const gicsSectors = (typeof Constants !== 'undefined' && Constants.GICS_11_SECTORS) ? Constants.GICS_11_SECTORS : [];
+      const sectorColors = (typeof Constants !== 'undefined' && Constants.GICS_SECTOR_COLORS) ? Constants.GICS_SECTOR_COLORS : {};
+
+      let eqHtml = '';
+      equityRegions.forEach(reg => {
+        const excludedList = pConf.filters.equity[reg] || [];
+        const isExcludedCount = excludedList.length;
+
+        // Finde wie viele Holdings & welches Gewicht in dieser Region liegen
+        let regWeight = 0;
+        let regHoldingsCount = 0;
+        state.data.holdings.forEach(h => {
+          if (h.asset_type === "Aktien" && (h.etf_region || "Global") === reg) {
+            const pw = pConf.weights[h.etf_ric];
+            if (pw > 0) {
+              regWeight += (h.weight_norm ?? h.weight_raw ?? 0) * (pw / 100);
+              regHoldingsCount++;
+            }
+          }
+        });
+
+        eqHtml += `
+          <div class="card border border-light-subtle shadow-none">
+            <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-1">
+              <div>
+                <span class="fw-bold text-dark"><i class="bi bi-geo-alt text-primary me-1"></i>${reg}</span>
+                <span class="badge bg-secondary-subtle text-secondary ms-2 small">${regWeight.toFixed(1)}% im Portfolio (${regHoldingsCount} Titel)</span>
+              </div>
+              <div class="d-flex align-items-center gap-1">
+                ${isExcludedCount > 0 ? `<span class="badge bg-danger-subtle text-danger small me-1">${isExcludedCount} exkludiert</span>` : '<span class="badge bg-success-subtle text-success small me-1">Alle 11 aktiv</span>'}
+                <button type="button" class="btn btn-xs btn-link text-decoration-none p-0 px-1 text-primary btn-eq-filter-all-active" data-region="${reg}">Alle aktiv</button>
+                <span class="text-muted">|</span>
+                <button type="button" class="btn btn-xs btn-link text-decoration-none p-0 px-1 text-danger btn-eq-filter-all-exclude" data-region="${reg}">Alle exkludieren</button>
+              </div>
+            </div>
+            <div class="card-body p-2 d-flex flex-wrap gap-1">
+              ${gicsSectors.map(sec => {
+                const isExcluded = excludedList.includes(sec);
+                const sColor = sectorColors[sec] || "#64748B";
+                if (isExcluded) {
+                  return `
+                    <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 text-decoration-line-through filter-equity-sector-chip" data-region="${reg}" data-sector="${sec}" title="Klicken zum Aktivieren">
+                      <i class="bi bi-x-circle-fill me-1 text-danger"></i>${sec}
+                    </button>
+                  `;
+                } else {
+                  return `
+                    <button type="button" class="btn btn-sm btn-light border py-1 px-2 filter-equity-sector-chip" data-region="${reg}" data-sector="${sec}" style="border-left: 4px solid ${sColor} !important;" title="Klicken zum Ausschliessen">
+                      <i class="bi bi-check-circle-fill me-1 text-success"></i>${sec}
+                    </button>
+                  `;
+                }
+              }).join('')}
+            </div>
+          </div>
+        `;
+      });
+      eqContainer.innerHTML = eqHtml;
+    }
+
+    // 5. Bond-Maturity-Filter pro Region rendern
+    const bdContainer = document.getElementById('filter-bond-regions-container');
+    if (bdContainer && impact) {
+      const bondRegions = (typeof Constants !== 'undefined' && Constants.BOND_REGIONS_LIST) ? Constants.BOND_REGIONS_LIST : ["Schweiz", "Eurozone", "Nordamerika", "UK", "EM HC", "EM LC"];
+      let bdHtml = '';
+
+      bondRegions.forEach(reg => {
+        const stats = impact.regionalBondStats[reg] || {};
+        const curFilter = pConf.filters.bonds[reg] || {};
+        const minVal = curFilter.min != null ? curFilter.min : "";
+        const maxVal = curFilter.max != null ? curFilter.max : "";
+
+        const hasFilter = minVal !== "" || maxVal !== "";
+        const rawAvgMat = stats.rawAvgMaturity != null ? stats.rawAvgMaturity.toFixed(2) : "-";
+        const filtAvgMat = stats.filteredAvgMaturity != null ? stats.filteredAvgMaturity.toFixed(2) : "-";
+        const filtAvgDur = stats.filteredAvgDuration != null ? stats.filteredAvgDuration.toFixed(2) : "-";
+
+        bdHtml += `
+          <div class="card border border-light-subtle shadow-none">
+            <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-1">
+              <div>
+                <span class="fw-bold text-dark"><i class="bi bi-calendar-range text-teal me-1" style="color:#0D9488;"></i>${reg}</span>
+                <span class="badge bg-secondary-subtle text-secondary ms-2 small">${stats.filteredCount || 0} / ${stats.rawCount || 0} Anleihen</span>
+              </div>
+              <div class="d-flex align-items-center gap-1">
+                <span class="badge ${hasFilter ? 'bg-warning text-dark' : 'bg-light text-secondary border'} small">
+                  Ø Maturity: <strong>${filtAvgMat} J.</strong> ${hasFilter ? `(Basis: ${rawAvgMat} J.)` : ''} | Ø Dur.: ${filtAvgDur} J.
+                </span>
+              </div>
+            </div>
+            <div class="card-body p-2">
+              <div class="row g-2 align-items-center mb-2">
+                <div class="col-sm-5">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-secondary">Min Laufzeit (J.)</span>
+                    <input type="number" step="0.5" min="0" max="100" class="form-control filter-bond-min-input" data-region="${reg}" value="${minVal}" placeholder="0.0">
+                  </div>
+                </div>
+                <div class="col-sm-5">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-secondary">Max Laufzeit (J.)</span>
+                    <input type="number" step="0.5" min="0" max="100" class="form-control filter-bond-max-input" data-region="${reg}" value="${maxVal}" placeholder="∞">
+                  </div>
+                </div>
+                <div class="col-sm-2 text-end">
+                  <button type="button" class="btn btn-sm btn-outline-secondary w-100 btn-bond-filter-reset" data-region="${reg}" title="Filter für diese Region zurücksetzen"><i class="bi bi-x"></i></button>
+                </div>
+              </div>
+              <!-- Schnell-Presets -->
+              <div class="d-flex gap-1 flex-wrap align-items-center">
+                <span class="text-muted small me-1">Presets:</span>
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 btn-bond-preset" data-region="${reg}" data-min="" data-max="">Alle</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-bond-preset" data-region="${reg}" data-min="0" data-max="3">&lt; 3 J.</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-bond-preset" data-region="${reg}" data-min="3" data-max="7">3 - 7 J.</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-bond-preset" data-region="${reg}" data-min="7" data-max="10">7 - 10 J.</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-bond-preset" data-region="${reg}" data-min="10" data-max="15">10 - 15 J.</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 btn-bond-preset" data-region="${reg}" data-min="15" data-max="">&gt; 15 J.</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      bdContainer.innerHTML = bdHtml;
+    }
+  }
+
+  function setupPortfolioFilterEventListeners() {
+    const filterPanel = document.getElementById('tab_portfolio_filter');
+    if (!filterPanel) return;
+
+    // 1. Portfolio Umschalter
+    filterPanel.addEventListener('click', (e) => {
+      const portBtn = e.target.closest('.filter-port-btn');
+      if (portBtn) {
+        state.selectedFilterPort = portBtn.getAttribute('data-port') || "portfolio_1";
+        renderPortfolioFilterTab();
+        return;
+      }
+
+      // 2. Aktien Sektor Chip Klick
+      const sectorChip = e.target.closest('.filter-equity-sector-chip');
+      if (sectorChip) {
+        const reg = sectorChip.getAttribute('data-region');
+        const sec = sectorChip.getAttribute('data-sector');
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        const pConf = state.portfolios[pKey];
+        if (!pConf) return;
+        if (!pConf.filters) pConf.filters = { equity: {}, bonds: {} };
+        if (!pConf.filters.equity) pConf.filters.equity = {};
+        if (!pConf.filters.equity[reg]) pConf.filters.equity[reg] = [];
+
+        const idx = pConf.filters.equity[reg].indexOf(sec);
+        if (idx > -1) {
+          pConf.filters.equity[reg].splice(idx, 1);
+        } else {
+          pConf.filters.equity[reg].push(sec);
+        }
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+        return;
+      }
+
+      // 3. Alle aktiv für Region
+      const allActiveBtn = e.target.closest('.btn-eq-filter-all-active');
+      if (allActiveBtn) {
+        const reg = allActiveBtn.getAttribute('data-region');
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        const pConf = state.portfolios[pKey];
+        if (pConf?.filters?.equity) {
+          pConf.filters.equity[reg] = [];
+          state.saveStatus = "Ungespeichert";
+          updateApp();
+        }
+        return;
+      }
+
+      // 4. Alle exkludieren für Region
+      const allExcludeBtn = e.target.closest('.btn-eq-filter-all-exclude');
+      if (allExcludeBtn) {
+        const reg = allExcludeBtn.getAttribute('data-region');
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        const pConf = state.portfolios[pKey];
+        if (!pConf) return;
+        if (!pConf.filters) pConf.filters = { equity: {}, bonds: {} };
+        if (!pConf.filters.equity) pConf.filters.equity = {};
+        pConf.filters.equity[reg] = [...(Constants.GICS_11_SECTORS || [])];
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+        return;
+      }
+
+      // 5. Bond Duration Reset Button
+      const resetBondBtn = e.target.closest('.btn-bond-filter-reset');
+      if (resetBondBtn) {
+        const reg = resetBondBtn.getAttribute('data-region');
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        const pConf = state.portfolios[pKey];
+        if (pConf?.filters?.bonds?.[reg]) {
+          delete pConf.filters.bonds[reg];
+          state.saveStatus = "Ungespeichert";
+          updateApp();
+        }
+        return;
+      }
+
+      // 6. Bond Preset Buttons
+      const presetBtn = e.target.closest('.btn-bond-preset');
+      if (presetBtn) {
+        const reg = presetBtn.getAttribute('data-region');
+        const minStr = presetBtn.getAttribute('data-min');
+        const maxStr = presetBtn.getAttribute('data-max');
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        const pConf = state.portfolios[pKey];
+        if (!pConf) return;
+        if (!pConf.filters) pConf.filters = { equity: {}, bonds: {} };
+        if (!pConf.filters.bonds) pConf.filters.bonds = {};
+
+        const min = minStr !== "" ? Number(minStr) : null;
+        const max = maxStr !== "" ? Number(maxStr) : null;
+
+        if (min == null && max == null) {
+          delete pConf.filters.bonds[reg];
+        } else {
+          pConf.filters.bonds[reg] = { min, max };
+        }
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+        return;
+      }
+
+      // 7. Reset Portfolio Filters
+      const resetPortBtn = e.target.closest('#btn-filter-reset-port');
+      if (resetPortBtn) {
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        if (state.portfolios[pKey]) {
+          state.portfolios[pKey].filters = { equity: {}, bonds: {} };
+          state.saveStatus = "Ungespeichert";
+          updateApp();
+        }
+        return;
+      }
+
+      // 8. Reset All Filters
+      const resetAllBtn = e.target.closest('#btn-filter-reset-all');
+      if (resetAllBtn) {
+        if (confirm("Möchten Sie wirklich alle Portfolio-Filter über alle Portfolios zurücksetzen?")) {
+          ["portfolio_1", "portfolio_2", "portfolio_3"].forEach(pk => {
+            if (state.portfolios[pk]) {
+              state.portfolios[pk].filters = { equity: {}, bonds: {} };
+            }
+          });
+          state.saveStatus = "Ungespeichert";
+          updateApp();
+        }
+        return;
+      }
+
+      // 9. Save Filters
+      const saveFilterBtn = e.target.closest('#btn-filter-save');
+      if (saveFilterBtn) {
+        Persistence.savePortfolios(state.portfolios);
+        state.saveStatus = "Gespeichert";
+        const statusBadge = document.getElementById('sidebar-save-status');
+        if (statusBadge) {
+          statusBadge.innerText = state.saveStatus;
+          statusBadge.className = "badge bg-success";
+        }
+        alert("Filterregeln wurden dauerhaft gespeichert!");
+        return;
+      }
+    });
+
+    // Change-Events für Duration Min/Max Inputs
+    filterPanel.addEventListener('change', (e) => {
+      const minInput = e.target.closest('.filter-bond-min-input');
+      const maxInput = e.target.closest('.filter-bond-max-input');
+      if (minInput || maxInput) {
+        const target = minInput || maxInput;
+        const reg = target.getAttribute('data-region');
+        const pKey = state.selectedFilterPort || "portfolio_1";
+        const pConf = state.portfolios[pKey];
+        if (!pConf) return;
+        if (!pConf.filters) pConf.filters = { equity: {}, bonds: {} };
+        if (!pConf.filters.bonds) pConf.filters.bonds = {};
+
+        const minVal = filterPanel.querySelector(`.filter-bond-min-input[data-region="${reg}"]`)?.value;
+        const maxVal = filterPanel.querySelector(`.filter-bond-max-input[data-region="${reg}"]`)?.value;
+
+        const min = (minVal != null && minVal.trim() !== "") ? Number(minVal) : null;
+        const max = (maxVal != null && maxVal.trim() !== "") ? Number(maxVal) : null;
+
+        if (min == null && max == null) {
+          delete pConf.filters.bonds[reg];
+        } else {
+          pConf.filters.bonds[reg] = { min, max };
+        }
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+      }
+    });
+  }
+
   function setupEventHandlers() {
     // Tab Navigation
     document.querySelectorAll('#mainNav .nav-link').forEach(link => {
@@ -1016,6 +1453,9 @@
         }
       });
     });
+
+    // Portfolio-Filter Event Listener registrieren
+    setupPortfolioFilterEventListeners();
   }
 
   function populateSectorDrilldownSelect() {

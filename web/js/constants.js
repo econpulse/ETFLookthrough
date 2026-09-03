@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // web/js/constants.js
 // Zentrale Konstanten für Farben, Sektoren, Assetklassen, Regionen und Themes
 // Unterstützt sowohl Browser-Global als auch Node.js (CommonJS)
@@ -67,6 +67,24 @@
     "Pazifik",
     "Schwellenländer",
     "UK"
+  ];
+
+  const EQUITY_REGIONS_LIST = [
+    "Schweiz",
+    "Eurozone",
+    "UK",
+    "Nordamerika",
+    "Pazifik",
+    "Schwellenländer"
+  ];
+
+  const BOND_REGIONS_LIST = [
+    "Schweiz",
+    "Eurozone",
+    "Nordamerika",
+    "UK",
+    "EM HC",
+    "EM LC"
   ];
 
   const REGION_COLORS = {
@@ -181,6 +199,8 @@
     GICS_SECTOR_COLORS,
     ASSET_TYPE_COLORS,
     REGIONS_LIST,
+    EQUITY_REGIONS_LIST,
+    BOND_REGIONS_LIST,
     REGION_COLORS,
     CURRENCY_COLORS,
     ISSUER_TYPE_COLORS,

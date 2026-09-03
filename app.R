@@ -347,42 +347,7 @@ ui <- page_navbar(
           bs_icon("shield-check", class = "text-success me-1"), "11 GICS Standard-Klassifikation"
         )
       ),
-      
-      layout_columns(
-        col_widths = c(4, 4, 4),
-        
-        card(
-          card_header(span(bs_icon("pie-chart"), " 11 GICS Sektormix (Aktienanteil)")),
-          card_body(
-            plotlyOutput("plot_sector_pie", height = "380px")
-          )
-        ),
-        
-        card(
-          card_header(span(bs_icon("bar-chart-fill"), " Sektorallokation nach Portfolio (%)")),
-          card_body(
-            plotlyOutput("plot_sector_bars", height = "380px")
-          )
-        ),
-        
-        card(
-          card_header(
-            div(
-              class = "d-flex justify-content-between align-items-center",
-              span(bs_icon("arrow-left-right"), " Sektor-Divergenzen (Delta)"),
-              selectInput(
-                "select_delta_pair",
-                label = NULL,
-                choices = c("P1 vs. P2" = "p1_p2", "P1 vs. P3" = "p1_p3", "P2 vs. P3" = "p2_p3"),
-                width = "130px"
-              )
-            )
-          ),
-          card_body(
-            plotlyOutput("plot_sector_delta", height = "380px")
-          )
-        )
-      ),
+
       
       card(
         card_header(span(bs_icon("table"), " Detaillierte Sektor-Vergleichstabelle")),
@@ -417,6 +382,7 @@ ui <- page_navbar(
   ),
   
   # ----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
   # TAB 4: 🏆 TOP HOLDINGS & LOOK-THROUGH
   # ----------------------------------------------------------------------------
   nav_panel(
@@ -429,26 +395,8 @@ ui <- page_navbar(
       div(
         class = "d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom",
         div(
-          h4(class = "mb-0 fw-bold text-dark", "Top 20 Einzeltitel (Aktien) & Vollständiger Look-Through"),
-          p(class = "text-muted small mb-0", "Transparenz über Einzeltitelgewichtungen, Klumpenrisiken und ETF-Überlappungen.")
-        )
-      ),
-      
-      layout_columns(
-        col_widths = c(6, 6),
-        
-        card(
-          card_header(span(bs_icon("bar-chart-steps"), " Top 20 Aktien-Holdings im direkten Vergleich")),
-          card_body(
-            plotlyOutput("plot_top20_bars", height = "520px")
-          )
-        ),
-        
-        card(
-          card_header(span(bs_icon("list-ol"), " Top 20 Aktien-Holdings Rangliste")),
-          card_body(
-            reactableOutput("table_top20_detail")
-          )
+          h4(class = "mb-0 fw-bold text-dark", "Vollständiger Look-Through"),
+          p(class = "text-muted small mb-0", "Transparenz über alle aggregierten Einzeltitel, Assetklassen und ETF-Überlappungen.")
         )
       ),
       
@@ -539,6 +487,13 @@ ui <- page_navbar(
               )
             )
           )
+        )
+      ),
+      
+      card(
+        card_header(span(bs_icon("list-ol"), " Top 20 Aktien-Holdings Rangliste")),
+        card_body(
+          reactableOutput("table_top20_detail")
         )
       )
     )

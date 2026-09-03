@@ -59,6 +59,9 @@
             <a class="nav-link" href="#" data-tab="tab_concentration"><i class="bi bi-graph-up me-1"></i> Konzentration</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="tab_portfolio_filter"><i class="bi bi-funnel me-1"></i> Portfolio-Filter</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="#" data-tab="tab_config"><i class="bi bi-gear me-1"></i> Portfolio-Editor</a>
           </li>
           <li class="nav-item">
@@ -805,33 +808,6 @@
             </div>
           </div>
 
-          <div class="row g-3 mb-3">
-            <div class="col-lg-4">
-              <div class="card h-100">
-                <div class="card-header"><i class="bi bi-pie-chart text-primary me-1"></i> 11 GICS Sektormix (Aktienanteil)</div>
-                <div class="card-body p-2"><div id="plot_sector_pie" style="height: 380px;"></div></div>
-              </div>
-            </div>
-            <div class="col-lg-4">
-              <div class="card h-100">
-                <div class="card-header"><i class="bi bi-bar-chart-fill text-primary me-1"></i> Sektorallokation (%)</div>
-                <div class="card-body p-2"><div id="plot_sector_bars" style="height: 380px;"></div></div>
-              </div>
-            </div>
-            <div class="col-lg-4">
-              <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <span><i class="bi bi-arrow-left-right text-primary me-1"></i> Sektor-Divergenzen</span>
-                  <select id="select-sector-delta-pair" class="form-select form-select-sm" style="width: 130px;">
-                    <option value="delta_p1_p2">P1 vs. P2</option>
-                    <option value="delta_p1_p3">P1 vs. P3</option>
-                    <option value="delta_p2_p3">P2 vs. P3</option>
-                  </select>
-                </div>
-                <div class="card-body p-2"><div id="plot_sector_delta" style="height: 380px;"></div></div>
-              </div>
-            </div>
-          </div>
 
           <div class="card mb-3">
             <div class="card-header"><i class="bi bi-table text-primary me-1"></i> Detaillierte Sektor-Vergleichstabelle</div>
@@ -854,23 +830,8 @@
         <!-- =================================================================== -->
         <div id="tab_holdings" class="tab-content-panel d-none">
           <div class="mb-3 pb-2 border-bottom">
-            <h4 class="mb-0 fw-bold text-dark">Top 20 Einzeltitel (Aktien) & Vollständiger Look-Through</h4>
-            <p class="text-muted small mb-0">Transparenz über Einzeltitelgewichtungen, Klumpenrisiken und ETF-Überlappungen.</p>
-          </div>
-
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <div class="card h-100">
-                <div class="card-header"><i class="bi bi-bar-chart-steps text-primary me-1"></i> Top 20 Aktien-Holdings im Vergleich</div>
-                <div class="card-body p-2"><div id="plot_top20_bars" style="height: 520px;"></div></div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="card h-100">
-                <div class="card-header"><i class="bi bi-list-ol text-primary me-1"></i> Top 20 Aktien-Holdings Rangliste</div>
-                <div class="card-body p-0"><div id="table_top20_detail"></div></div>
-              </div>
-            </div>
+            <h4 class="mb-0 fw-bold text-dark">Vollständiger Look-Through</h4>
+            <p class="text-muted small mb-0">Transparenz über alle aggregierten Einzeltitel, Assetklassen und ETF-Überlappungen.</p>
           </div>
 
           <div class="card">
@@ -906,7 +867,7 @@
             <p class="text-muted small mb-0">Herfindahl-Hirschman Index (HHI), Effektive Titelanzahl (N_eff) und Lorenz-Kurve für den Aktienteil.</p>
           </div>
 
-          <div class="row g-3">
+          <div class="row g-3 mb-3">
             <div class="col-md-6">
               <div class="card h-100">
                 <div class="card-header"><i class="bi bi-activity text-primary me-1"></i> Kumulative Konzentrationskurve (Lorenz-Kurve)</div>
@@ -927,6 +888,93 @@
                       <li><strong>HHI:</strong> Summe der quadrierten Prozentgewichte. Werte unter 1'500 gelten als breit diversifiziert.</li>
                       <li><strong>Top 10 / 20:</strong> Kumulierter Prozentanteil der grössten 10 bzw. 20 Aktienpositionen.</li>
                     </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><i class="bi bi-list-ol text-primary me-1"></i> Top 20 Aktien-Holdings Rangliste</div>
+            <div class="card-body p-0"><div id="table_top20_detail"></div></div>
+          </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 5.5: 🎯 PORTFOLIO-FILTER (SEKTOR-EXKLUSION & MATURITY) -->
+        <!-- =================================================================== -->
+        <div id="tab_portfolio_filter" class="tab-content-panel d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+            <div>
+              <h4 class="mb-0 fw-bold text-dark"><i class="bi bi-funnel-fill text-primary me-2"></i>Portfolio-Filter (Sektor-Exklusion & Maturity-Bänder)</h4>
+              <p class="text-muted small mb-0">Definieren Sie portfoliospezifische Ausschlussfilter für Aktien-Sektoren nach Region sowie Maturity-Intervalle (Restlaufzeit) für Anleihen. Auswirkungen werden direkt auf die Look-Through-Aggregation angewandt.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <button id="btn-filter-reset-port" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Filter für aktuelles Portfolio zurücksetzen</button>
+              <button id="btn-filter-reset-all" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3 me-1"></i>Alle Filter zurücksetzen</button>
+              <button id="btn-filter-save" class="btn btn-sm btn-primary fw-semibold"><i class="bi bi-floppy-fill me-1"></i>Filter speichern</button>
+            </div>
+          </div>
+
+          <!-- Portfolio-Auswahl Buttons -->
+          <div class="card mb-3 bg-light border-0 shadow-sm">
+            <div class="card-body p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="small fw-bold text-secondary text-uppercase ms-1"><i class="bi bi-briefcase me-1"></i>Zu filterndes Portfolio:</span>
+                <div class="btn-group" id="filter-portfolio-buttons" role="group">
+                  <button type="button" class="btn btn-sm btn-primary filter-port-btn active" data-port="portfolio_1">Portfolio 1 (TAA)</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary filter-port-btn" data-port="portfolio_2">Portfolio 2 (SAA)</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary filter-port-btn" data-port="portfolio_3">Portfolio 3 (TAA-Alt)</button>
+                </div>
+              </div>
+              <div id="filter-active-counter-badge" class="badge bg-primary px-3 py-2">
+                <i class="bi bi-check-circle me-1"></i> 0 Filter aktiv
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Impact Summary Card -->
+          <div class="card mb-4 border-primary shadow-sm" style="border-left: 4px solid #1E40AF !important;">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+              <span class="fw-bold text-primary"><i class="bi bi-lightning-charge-fill me-1"></i> Live-Impact auf <span id="filter-impact-port-name">Portfolio 1 (TAA)</span></span>
+              <span class="badge bg-light text-muted border small">Direkte Look-Through Auswirkung</span>
+            </div>
+            <div class="card-body p-3">
+              <div class="row g-2 text-center" id="filter-impact-kpis">
+                <!-- Werden dynamisch via JS befüllt -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Hauptbereich Filter: 2 Spalten (Aktien Sektoren & Bond Maturity) -->
+          <div class="row g-3">
+            <!-- Linke Spalte: Aktien-Sektor-Exklusion pro Region -->
+            <div class="col-lg-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-dark"><i class="bi bi-pie-chart-fill text-primary me-1"></i> 🏢 Aktien: Sektor-Exklusion nach Region</span>
+                  <span class="badge bg-light text-secondary border small">11 GICS Sektoren</span>
+                </div>
+                <div class="card-body p-3">
+                  <p class="text-muted small mb-3">Wählen Sie Sektoren ab, um diese gezielt für die jeweilige Aktien-Region aus dem Look-Through auszuschließen. Grüne Chips sind aktiv, durchgestrichene rote Chips sind exkludiert.</p>
+                  <div id="filter-equity-regions-container" class="d-flex flex-column gap-3">
+                    <!-- Dynamisch generierte Region-Karten mit Sektor-Chips -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rechte Spalte: Bond-Maturity-Filter pro Region -->
+            <div class="col-lg-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+                  <span class="fw-bold text-teal me-1" style="color:#0D9488;"><i class="bi bi-calendar-range me-1"></i> 🏛️ Anleihen: Maturity-Bänder (Restlaufzeit) nach Region</span>
+                  <span class="badge bg-light text-secondary border small">Restlaufzeit in Jahren</span>
+                </div>
+                <div class="card-body p-3">
+                  <p class="text-muted small mb-3">Definieren Sie pro Bond-Region ein zulässiges Maturity-Intervall (Restlaufzeit in Jahren). Anleihen ausserhalb der Spanne werden herausgefiltert und verändern die resultierende Portfolio-Restlaufzeit und -Duration.</p>
+                  <div id="filter-bond-regions-container" class="d-flex flex-column gap-3">
+                    <!-- Dynamisch generierte Bond-Region-Karten mit Min/Max Inputs & Presets -->
                   </div>
                 </div>
               </div>

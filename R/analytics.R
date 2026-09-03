@@ -36,7 +36,7 @@ calc_weighted_harmonic <- function(x, w, min_val = 0.01, max_val = Inf) {
 #' @param clean_data Aufbereiteter Datensatz aus data_loader.R (data_clean)
 #' @param use_normalized_etf_weights Logisch, ob normalisierte ETF-Aktiengewichte (100% Equity) verwendet werden sollen
 #' @return Dataframe mit allen Einzeltiteln und deren Portfolio-Gewichten inkl. Asset-Typ & Kennzahlen
-calculate_single_portfolio_lookthrough <- function(etf_weights, clean_data, use_normalized_etf_weights = TRUE) {
+calculate_single_portfolio_lookthrough <- function(etf_weights, clean_data, use_normalized_etf_weights = TRUE, filters = NULL) {
   etf_names <- names(etf_weights)
   weights_val <- as.numeric(unlist(etf_weights))
   names(weights_val) <- etf_names
@@ -77,6 +77,34 @@ calculate_single_portfolio_lookthrough <- function(etf_weights, clean_data, use_
   relevant_holdings <- clean_data %>%
     dplyr::filter(etf_ric %in% active_etfs)
   
+  # Filter anwenden (Sektor-Exklusion pro Region & Duration-Bänder)
+  if (!is.null(filters)) {
+    if (!is.null(filters$equity)) {
+      for (reg in names(filters$equity)) {
+        ex_secs <- filters$equity[[reg]]
+        if (length(ex_secs) > 0) {
+          relevant_holdings <- relevant_holdings %>%
+            dplyr::filter(!(asset_type == "Aktien" & etf_region == reg & gics_sector %in% ex_secs))
+        }
+      }
+    }
+    if (!is.null(filters$bonds)) {
+      for (reg in names(filters$bonds)) {
+        mat_f <- filters$bonds[[reg]]
+        min_m <- mat_f$min
+        max_m <- mat_f$max
+        if (!is.null(min_m) && !is.na(min_m)) {
+          relevant_holdings <- relevant_holdings %>%
+            dplyr::filter(!(asset_type == "Bonds" & (etf_region == reg | (etf_ric == "EMB.O" & reg == "EM HC") | (etf_ric == "ELD" & reg == "EM LC")) & !is.na(maturity_years) & maturity_years < min_m))
+        }
+        if (!is.null(max_m) && !is.na(max_m)) {
+          relevant_holdings <- relevant_holdings %>%
+            dplyr::filter(!(asset_type == "Bonds" & (etf_region == reg | (etf_ric == "EMB.O" & reg == "EM HC") | (etf_ric == "ELD" & reg == "EM LC")) & !is.na(maturity_years) & maturity_years > max_m))
+        }
+      }
+    }
+  }
+
   if (nrow(relevant_holdings) == 0) {
     return(tibble(
       holding_ric = character(),
@@ -149,12 +177,14 @@ calculate_all_portfolios <- function(portfolios_list, clean_data, use_normalized
       lt <- calculate_single_portfolio_lookthrough(
         etf_weights = p_conf$weights,
         clean_data = clean_data,
-        use_normalized_etf_weights = use_normalized_etf_weights
+        use_normalized_etf_weights = use_normalized_etf_weights,
+        filters = p_conf$filters
       )
       results[[p_key]] <- list(
         id = p_conf$id,
         name = p_conf$name,
         enabled = TRUE,
+        filters = p_conf$filters,
         holdings = lt
       )
     } else {
