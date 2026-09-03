@@ -4,42 +4,25 @@
 // ==============================================================================
 
 (function(global) {
-  function formatNum(val, decimals = 2, suffix = "") {
-    if (val == null || isNaN(val)) return '<span class="text-muted">-</span>';
-    return `${Number(val).toFixed(decimals)}${suffix}`;
-  }
+  const Constants = (typeof module !== 'undefined' && module.exports)
+    ? require('./constants')
+    : (global.Constants || {});
 
-  function formatDelta(val) {
-    if (val == null || isNaN(val) || Math.abs(val) < 0.001) {
-      return '<span class="text-muted">0.00%</span>';
-    }
-    const cls = val > 0 ? "text-primary fw-semibold" : "text-danger fw-semibold";
-    const sign = val > 0 ? "+" : "";
-    return `<span class="${cls}">${sign}${val.toFixed(2)}%</span>`;
-  }
+  const Utils = (typeof module !== 'undefined' && module.exports)
+    ? require('./utils')
+    : (global.Utils || {});
 
-  function getAssetBadge(assetType) {
-    if (assetType === "Bonds") {
-      return '<span class="badge" style="background-color:#E6FFFA;color:#0D9488;border:1px solid #5EEAD4;font-size:0.75rem;">Bonds</span>';
-    }
-    if (assetType === "Real Estate") {
-      return '<span class="badge" style="background-color:#FDF2F0;color:#8C564B;border:1px solid #F5C6CB;font-size:0.75rem;">Real Estate</span>';
-    }
-    if (assetType === "Cash") {
-      return '<span class="badge" style="background-color:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;font-size:0.75rem;">Cash</span>';
-    }
-    if (assetType === "Rohstoffe") {
-      return '<span class="badge" style="background-color:#FFFBEB;color:#D97706;border:1px solid #FDE68A;font-size:0.75rem;">Rohstoffe</span>';
-    }
-    return '<span class="badge" style="background-color:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;font-size:0.75rem;">Aktien</span>';
-  }
+  const formatNum = Utils.formatNum || ((v, d = 2, s = "") => v != null ? Number(v).toFixed(d) + s : "-");
+  const formatDelta = Utils.formatDelta || ((v, d = 2, s = "%") => v != null ? (v > 0 ? "+" : "") + Number(v).toFixed(d) + s : "-");
+  const formatPct = Utils.formatPct || ((v, d = 2) => formatNum(v, d, "%"));
+  const escapeHtml = Utils.escapeHtml || (s => s || "");
+  const getAssetBadge = Utils.getAssetBadge || (t => `<span class="badge">${t}</span>`);
+  const getSectorBadge = Utils.getSectorBadge || (s => `<span class="badge">${s}</span>`);
+  const getCurrencyBadge = Utils.getCurrencyBadge || (c => `<span class="badge font-monospace">${c}</span>`);
 
-  function getSectorBadge(sector) {
-    if (!sector) return '<span class="badge bg-light text-muted border">-</span>';
-    const sectorColors = global.Analytics?.GICS_SECTOR_COLORS || {};
-    const color = sectorColors[sector] || "#64748B";
-    return `<span class="badge" style="background-color: ${color}20; color: ${color}; border: 1px solid ${color}40; font-size: 0.75rem;">${sector}</span>`;
-  }
+  // Paginierung State für Look-Through Tabelle
+  let fullTableCurrentPage = 1;
+  const FULL_TABLE_PAGE_SIZE = 50;
 
   function renderDashboardTop10Table(elementId, combinedTop, portfoliosState) {
     const elem = document.getElementById(elementId);
@@ -561,7 +544,7 @@
     render();
   }
 
-  function renderFullLookthroughTable(elementId, holdings, searchTerm = "", assetFilter = "all") {
+  function renderFullLookthroughTable(elementId, holdings, searchTerm = "", assetFilter = "all", page = 1) {
     const elem = document.getElementById(elementId);
     if (!elem) return;
 
@@ -569,19 +552,27 @@
     if (assetFilter && assetFilter !== "all") {
       filtered = filtered.filter(h => h.asset_type === assetFilter);
     }
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase();
+    if (searchTerm && searchTerm.trim()) {
+      const s = searchTerm.trim().toLowerCase();
       filtered = filtered.filter(h => 
         (h.holding_name && h.holding_name.toLowerCase().includes(s)) ||
         (h.holding_ric && h.holding_ric.toLowerCase().includes(s)) ||
+        (h.holding_isin && h.holding_isin.toLowerCase().includes(s)) ||
         (h.gics_sector && h.gics_sector.toLowerCase().includes(s)) ||
         (h.currency && h.currency.toLowerCase().includes(s)) ||
         (h.maturity_date && h.maturity_date.toLowerCase().includes(s))
       );
     }
 
+    const pageSize = 50;
+    const totalItems = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const curPage = Math.min(Math.max(1, page || 1), totalPages);
+    const startIdx = (curPage - 1) * pageSize;
+    const pagedItems = filtered.slice(startIdx, startIdx + pageSize);
+
     let html = `
-      <div class="table-responsive" style="max-height: 480px;">
+      <div class="table-responsive" style="max-height: 500px;">
         <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
           <thead class="table-light sticky-top">
             <tr>
@@ -601,36 +592,50 @@
           <tbody>
     `;
 
-    if (filtered.length === 0) {
-      html += `<tr><td colspan="11" class="text-center py-3 text-muted">Keine Positionen gefunden</td></tr>`;
+    if (totalItems === 0) {
+      html += `<tr><td colspan="11" class="text-center py-4 text-muted">Keine Positionen gefunden</td></tr>`;
     } else {
-      filtered.slice(0, 150).forEach((h, i) => {
+      pagedItems.forEach((h, i) => {
         const isBond = h.asset_type === "Bonds";
+        const rowNum = startIdx + i + 1;
 
         html += `
           <tr>
-            <td class="text-muted small">${i + 1}</td>
+            <td class="text-muted small">${rowNum}</td>
             <td>
-              <div class="fw-semibold text-truncate" style="max-width: 190px;" title="${h.holding_name}">${h.holding_name || h.holding_ric}</div>
-              <div class="text-muted" style="font-size: 0.72rem;">${h.holding_ric}</div>
+              <div class="fw-semibold text-truncate" style="max-width: 190px;" title="${escapeHtml(h.holding_name)}">${escapeHtml(h.holding_name || h.holding_ric)}</div>
+              <div class="text-muted font-monospace" style="font-size: 0.72rem;">${escapeHtml(h.holding_ric || h.holding_isin || "")}</div>
             </td>
             <td>${getAssetBadge(h.asset_type)}</td>
             <td>${getSectorBadge(h.gics_sector)}</td>
-            <td><span class="badge bg-light text-dark border">${h.currency}</span></td>
+            <td>${getCurrencyBadge(h.currency)}</td>
             <td class="text-end font-monospace fw-bold">${h.portfolio_weight.toFixed(3)}%</td>
-            <td class="text-end font-monospace">${formatNum(h.div_yield, 2, "%")}</td>
-            <td class="text-end font-monospace">${isBond ? formatNum(h.ytm, 2, "%") : formatNum(h.pe, 1, "x")}</td>
+            <td class="text-end font-monospace">${formatPct(h.div_yield, 2)}</td>
+            <td class="text-end font-monospace">${isBond ? formatPct(h.ytm, 2) : formatNum(h.pe, 1, "x")}</td>
             <td class="text-end font-monospace">${isBond ? formatNum(h.mod_duration, 1, " J.") : formatNum(h.pb, 1, "x")}</td>
-            <td class="text-center font-monospace small">${isBond && h.maturity_date ? `<span class="badge bg-light text-secondary border">${h.maturity_date}</span>` : '<span class="text-muted">-</span>'}</td>
-            <td><div class="text-muted small text-truncate" style="max-width: 220px;" title="${h.etf_breakdown}">${h.etf_breakdown}</div></td>
+            <td class="text-center font-monospace small">${isBond && h.maturity_date ? `<span class="badge bg-light text-secondary border">${escapeHtml(h.maturity_date)}</span>` : '<span class="text-muted">-</span>'}</td>
+            <td><div class="text-muted small text-truncate" style="max-width: 220px;" title="${escapeHtml(h.etf_breakdown)}">${escapeHtml(h.etf_breakdown)}</div></td>
           </tr>
         `;
       });
     }
 
     html += '</tbody></table></div>';
-    if (filtered.length > 150) {
-      html += `<div class="text-muted small p-2 text-center border-top bg-light">Zeige 150 von ${filtered.length} Positionen (Suchfeld zur Filterung nutzen)</div>`;
+    if (totalItems > 0) {
+      html += `
+        <div class="d-flex justify-content-between align-items-center p-2 border-top bg-light" style="font-size: 0.8rem;">
+          <span class="text-muted">Zeige ${startIdx + 1} bis ${Math.min(totalItems, startIdx + pageSize)} von ${totalItems.toLocaleString()} Positionen</span>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary btn-sm full-table-page-btn" data-page="${curPage - 1}" ${curPage <= 1 ? 'disabled' : ''}>
+              <i class="bi bi-chevron-left"></i> Vorherige
+            </button>
+            <span class="btn btn-light btn-sm disabled text-dark fw-semibold">Seite ${curPage} / ${totalPages}</span>
+            <button class="btn btn-outline-secondary btn-sm full-table-page-btn" data-page="${curPage + 1}" ${curPage >= totalPages ? 'disabled' : ''}>
+              Nächste <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      `;
     }
     elem.innerHTML = html;
   }

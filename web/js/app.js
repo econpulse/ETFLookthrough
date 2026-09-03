@@ -24,6 +24,7 @@
     selectedFullTableAssetClass: "all",
     selectedBondBreakdownPort: "portfolio_1",
     fullTableSearch: "",
+    fullTablePage: 1,
     singleEquitySectorRegion: "Total",
     singleBondIssuerRegion: "Total",
     singleCurrencyAssetClass: "Total",
@@ -219,33 +220,7 @@
       });
       container.innerHTML = html;
 
-      // Stepper Event Listener
-      container.querySelectorAll('.btn-dec-etf').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const ric = btn.getAttribute('data-ric');
-          weights[ric] = Math.max(0, Number(((weights[ric] || 0) - 0.5).toFixed(1)));
-          state.saveStatus = "Ungespeichert";
-          updateApp();
-        });
-      });
-
-      container.querySelectorAll('.btn-inc-etf').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const ric = btn.getAttribute('data-ric');
-          weights[ric] = Number(((weights[ric] || 0) + 0.5).toFixed(1));
-          state.saveStatus = "Ungespeichert";
-          updateApp();
-        });
-      });
-
-      container.querySelectorAll('.btn-del-etf').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const ric = btn.getAttribute('data-ric');
-          delete weights[ric];
-          state.saveStatus = "Ungespeichert";
-          updateApp();
-        });
-      });
+      // Event-Delegation am Container übernimmt alle Stepper- & Löschen-Events
     }
 
     // Dropdown für "ETF hinzufügen"
@@ -333,7 +308,7 @@
       Charts.renderTop20BarsPlot("plot_top20_bars", topHoldings.combinedTop, state.portfolios);
       Tables.renderTop20DetailTable("table_top20_detail", topHoldings.combinedTop);
       const selPortHoldings = calcPorts[state.selectedFullTablePort]?.holdings || [];
-      Tables.renderFullLookthroughTable("table_full_lookthrough", selPortHoldings, state.fullTableSearch, state.selectedFullTableAssetClass);
+      Tables.renderFullLookthroughTable("table_full_lookthrough", selPortHoldings, state.fullTableSearch, state.selectedFullTableAssetClass, state.fullTablePage);
     } else if (state.activeTab === "tab_concentration") {
       Charts.renderLorenzPlot("plot_lorenz", lorenzData, state.portfolios);
       Tables.renderConcentrationFullTable("table_concentration_full", concMetrics);
@@ -955,9 +930,53 @@
       updateApp();
     });
 
-    document.getElementById('input-full-table-search')?.addEventListener('input', (e) => {
-      state.fullTableSearch = e.target.value;
+    const debouncedFullTableSearch = (global.Utils?.debounce || (fn => fn))((val) => {
+      state.fullTableSearch = val;
+      state.fullTablePage = 1;
       updateApp();
+    }, 200);
+
+    document.getElementById('input-full-table-search')?.addEventListener('input', (e) => {
+      debouncedFullTableSearch(e.target.value);
+    });
+
+    // Pagination Event Delegation für Full Look-Through Tabelle
+    document.getElementById('table_full_lookthrough')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.full-table-page-btn');
+      if (btn && !btn.disabled) {
+        const pageNum = parseInt(btn.getAttribute('data-page'), 10);
+        if (!isNaN(pageNum) && pageNum > 0) {
+          state.fullTablePage = pageNum;
+          updateApp();
+        }
+      }
+    });
+
+    // Sidebar Event Delegation für Stepper & Delete Buttons
+    document.getElementById('sidebar-etf-list')?.addEventListener('click', (e) => {
+      const decBtn = e.target.closest('.btn-dec-etf');
+      const incBtn = e.target.closest('.btn-inc-etf');
+      const delBtn = e.target.closest('.btn-del-etf');
+      const pKey = state.activeSidebarPort;
+      const weights = state.portfolios[pKey]?.weights;
+      if (!weights) return;
+
+      if (decBtn) {
+        const ric = decBtn.getAttribute('data-ric');
+        weights[ric] = Math.max(0, Number(((weights[ric] || 0) - 0.5).toFixed(1)));
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+      } else if (incBtn) {
+        const ric = incBtn.getAttribute('data-ric');
+        weights[ric] = Number(((weights[ric] || 0) + 0.5).toFixed(1));
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+      } else if (delBtn) {
+        const ric = delBtn.getAttribute('data-ric');
+        delete weights[ric];
+        state.saveStatus = "Ungespeichert";
+        updateApp();
+      }
     });
 
     // Single Dashboard Drilldown Dropdowns

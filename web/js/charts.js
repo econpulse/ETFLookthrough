@@ -4,10 +4,14 @@
 // ==============================================================================
 
 (function(global) {
-  const PORTFOLIO_COLORS = {
-    "portfolio_1": "#1E40AF", // LUKB Corporate Navy
-    "portfolio_2": "#0D9488", // Teal / Petrol
-    "portfolio_3": "#E11D48"  // Rose / Coral
+  const Constants = (typeof module !== 'undefined' && module.exports)
+    ? require('./constants')
+    : (global.Constants || {});
+
+  const PORTFOLIO_COLORS = Constants.PORTFOLIO_COLORS || {
+    "portfolio_1": "#1E40AF",
+    "portfolio_2": "#0D9488",
+    "portfolio_3": "#E11D48"
   };
 
   const DEFAULT_PLOT_LAYOUT = {
@@ -23,7 +27,7 @@
     const elem = document.getElementById(elementId);
     if (!elem || typeof Plotly === 'undefined') return;
 
-    const sectorColors = global.Analytics?.GICS_SECTOR_COLORS || {};
+    const sectorColors = Constants.GICS_SECTOR_COLORS || {};
     const colKey = `weight_${activePortKey}`;
     const nonZero = sectorData.filter(d => (d[colKey] || 0) > 0.05);
 
